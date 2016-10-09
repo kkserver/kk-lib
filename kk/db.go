@@ -224,6 +224,34 @@ func DBQuery(db DBQueryer, table *DBTable, prefix string, sql string, args ...in
 	return db.Query(fmt.Sprintf("SELECT * FROM %s %s", tbname, sql), args...)
 }
 
+func DBDelete(db *sql.DB, table *DBTable, prefix string, sql string, args ...interface{}) (sql.Result, error) {
+	var tbname = prefix + table.Name
+	return db.Exec(fmt.Sprintf("DELETE FROM %s %s", tbname, sql), args...)
+}
+
+func DBQueryCount(db DBQueryer, table *DBTable, prefix string, sql string, args ...interface{}) (int, error) {
+	var tbname = prefix + table.Name
+
+	var rows, err = db.Query(fmt.Sprintf("SELECT COUNT(*) as c FROM %s %s", tbname, sql), args...)
+
+	if err != nil {
+		return 0, err
+	}
+
+	defer rows.Close()
+
+	if rows.Next() {
+		var v int = 0
+		err = rows.Scan(&v)
+		if err != nil {
+			return 0, err
+		}
+		return v, nil
+	}
+
+	return 0, nil
+}
+
 func DBUpdate(db *sql.DB, table *DBTable, prefix string, object interface{}) (sql.Result, error) {
 
 	var tbname = prefix + table.Name

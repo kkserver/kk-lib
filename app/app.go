@@ -46,6 +46,7 @@ func (app *App) Handle(task ITask) error {
 	var count = 0
 
 	for key, services := range app.services {
+
 		if key == taskType || (key.Kind() == reflect.Interface && taskType.Implements(key)) {
 			for _, service := range services {
 				var err = service.Handle(app, task)
