@@ -118,14 +118,14 @@ func DBBuild(db *sql.DB, table *DBTable, prefix string, auto_increment int) erro
 				if fd.Type != field.Type || fd.Length != field.Length {
 					_, err = db.Exec(fmt.Sprintf("ALTER TABLE %s CHANGE %s %s %s;", tbname, name, name, field.DBType()))
 					if err != nil {
-						log.Fatal(err)
+						log.Println(err)
 					}
 					hasUpdate = true
 				}
 			} else {
 				_, err = db.Exec(fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s;", tbname, name, field.DBType()))
 				if err != nil {
-					log.Fatal(err)
+					log.Println(err)
 				}
 				hasUpdate = true
 			}
@@ -135,14 +135,14 @@ func DBBuild(db *sql.DB, table *DBTable, prefix string, auto_increment int) erro
 			var _, ok = tb.Indexs[name]
 			if !ok {
 				if index.Unique {
-					_, err = db.Exec(fmt.Sprintf("CREATE UNIQUE INDEX IF NOT EXISTS  %s ON %s (%s %s);", name, tbname, name, index.DBType()))
+					_, err = db.Exec(fmt.Sprintf("CREATE UNIQUE INDEX %s ON %s (%s %s);", name, tbname, name, index.DBType()))
 					if err != nil {
-						log.Fatal(err)
+						log.Println(err)
 					}
 				} else {
-					_, err = db.Exec(fmt.Sprintf("CREATE INDEX IF NOT EXISTS  %s ON %s (%s %s);", name, tbname, name, index.DBType()))
+					_, err = db.Exec(fmt.Sprintf("CREATE INDEX %s ON %s (%s %s);", name, tbname, name, index.DBType()))
 					if err != nil {
-						log.Fatal(err)
+						log.Println(err)
 					}
 				}
 
@@ -253,6 +253,10 @@ func DBQueryCount(db DBQueryer, table *DBTable, prefix string, sql string, args 
 }
 
 func DBUpdate(db *sql.DB, table *DBTable, prefix string, object interface{}) (sql.Result, error) {
+	return DBUpdateWithKeys(db, table, prefix, object, nil)
+}
+
+func DBUpdateWithKeys(db *sql.DB, table *DBTable, prefix string, object interface{}, keys map[string]bool) (sql.Result, error) {
 
 	var tbname = prefix + table.Name
 	var s bytes.Buffer
@@ -273,7 +277,7 @@ func DBUpdate(db *sql.DB, table *DBTable, prefix string, object interface{}) (sq
 		var name = strings.ToLower(fd.Name)
 		if name == table.Key {
 			key = fbv.Interface()
-		} else {
+		} else if keys == nil || keys[name] {
 			var _, ok = table.Fields[name]
 			if ok {
 				if n != 0 {
@@ -362,12 +366,13 @@ type DBValue struct {
 }
 
 type DBScaner struct {
-	object interface{}
-	fields []interface{}
+	object   interface{}
+	fields   []interface{}
+	nilValue string
 }
 
 func NewDBScaner(object interface{}) DBScaner {
-	return DBScaner{object, nil}
+	return DBScaner{object, nil, ""}
 }
 
 func (o *DBScaner) Scan(rows *sql.Rows) error {
@@ -388,6 +393,10 @@ func (o *DBScaner) Scan(rows *sql.Rows) error {
 		}
 
 		o.fields = make([]interface{}, fdc)
+
+		for i := 0; i < fdc; i += 1 {
+			o.fields[i] = &o.nilValue
+		}
 
 		var tbv = reflect.ValueOf(o.object).Elem()
 		var tb = tbv.Type()

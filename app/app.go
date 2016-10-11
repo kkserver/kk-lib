@@ -8,6 +8,7 @@ type IApp interface {
 	Parent() IApp
 	Handle(task ITask) error
 	Get(key string) interface{}
+	Set(key string, value interface{}) IApp
 	NewAPITask(api string) IAPITask
 }
 
@@ -31,7 +32,7 @@ func (app *App) Get(key string) interface{} {
 	return nil
 }
 
-func (app *App) Set(key string, value interface{}) *App {
+func (app *App) Set(key string, value interface{}) IApp {
 	app.value[key] = value
 	return app
 }
