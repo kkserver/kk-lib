@@ -2,8 +2,10 @@ package kk
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -313,6 +315,7 @@ func TCPClientConnect(name string, address string, options map[string]interface{
 
 	var cli *TCPClient = nil
 	var cli_connect func() = nil
+	var isConnected = make(chan bool)
 
 	cli_connect = func() {
 
@@ -322,10 +325,15 @@ func TCPClientConnect(name string, address string, options map[string]interface{
 
 		cli.OnConnected = func() {
 			log.Printf("Connected(%s) %s \n", name, cli.Address())
+			select {
+			case isConnected <- true:
+			default:
+			}
 		}
 
 		cli.OnDisconnected = func(err error) {
 			log.Printf("Disconnected(%s) %s %s\n", name, cli.Address(), err.Error())
+			cli = nil
 			GetDispatchMain().AsyncDelay(cli_connect, time.Second)
 		}
 
@@ -338,6 +346,9 @@ func TCPClientConnect(name string, address string, options map[string]interface{
 	cli_connect()
 
 	return func(message *Message) bool {
+			if cli == nil {
+				<-isConnected
+			}
 			if cli != nil {
 				cli.Send(message, nil)
 				return true
@@ -350,4 +361,73 @@ func TCPClientConnect(name string, address string, options map[string]interface{
 			return name
 		}
 
+}
+
+func TCPClientRequestConnect(name string, address string, options map[string]interface{}) (func(message *Message, timeout time.Duration) *Message, func() string) {
+
+	var https = map[int64]chan Message{}
+
+	var sendMessage, getName = TCPClientConnect(name, address, options, func(message *Message) {
+
+		log.Println(message.String())
+
+		var i = strings.LastIndex(message.To, ".")
+		var id, _ = strconv.ParseInt(message.To[i+1:], 10, 64)
+		var ch, ok = https[id]
+
+		if ok && ch != nil {
+			if message.Method == "REQUEST" {
+				ch <- *message
+				delete(https, id)
+			} else {
+				var m = Message{"UNAVAILABLE", "", "", "", []byte("")}
+				ch <- m
+				delete(https, id)
+			}
+		}
+	})
+
+	return func(message *Message, timeout time.Duration) *Message {
+
+		var id = UUID()
+		var ch = make(chan Message)
+		defer close(ch)
+
+		message.From = fmt.Sprintf("%s.%d", getName(), id)
+		message.Method = "REQUEST"
+
+		GetDispatchMain().Async(func() {
+
+			https[id] = ch
+
+			if !sendMessage(message) {
+				var r = Message{"TIMEOUT", "", "", "", []byte("")}
+				ch <- r
+				delete(https, id)
+			}
+
+		})
+
+		GetDispatchMain().AsyncDelay(func() {
+
+			var ch = https[id]
+
+			if ch != nil {
+				var r = Message{"TIMEOUT", "", "", "", []byte("")}
+				ch <- r
+				delete(https, id)
+			}
+
+		}, timeout)
+
+		var m, ok = <-ch
+
+		if !ok {
+			var r = Message{"TIMEOUT", "", "", "", []byte("")}
+			return &r
+		} else {
+			return &m
+		}
+
+	}, getName
 }

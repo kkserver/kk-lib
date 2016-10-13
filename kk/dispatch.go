@@ -46,7 +46,10 @@ func (d *Dispatch) Break() {
 }
 
 func (d *Dispatch) Async(fn func()) {
-	d.ch <- fn
+	var ch = d.ch
+	go func() {
+		ch <- fn
+	}()
 }
 
 func (d *Dispatch) AsyncDelay(fn func(), delay time.Duration) {
