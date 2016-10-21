@@ -6,6 +6,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type TCPServer struct {
@@ -72,6 +73,8 @@ func NewTCPServer(name string, address string, maxconnections int) *TCPServer {
 	v.chan_break = make(chan bool)
 	v.clients = list.New()
 
+	var uuid int64 = time.Now().UnixNano()
+
 	go func() {
 
 		var listen, err = net.Listen("tcp", address)
@@ -137,7 +140,9 @@ func NewTCPServer(name string, address string, maxconnections int) *TCPServer {
 
 						log.Printf("connections: %d\n", num_connections)
 
-						var client = NewTCPClientConnection(conn, strconv.FormatInt(UUID(), 10))
+						uuid = uuid + 1
+
+						var client = NewTCPClientConnection(conn, strconv.FormatInt(uuid, 10))
 
 						v.clients.PushBack(client)
 

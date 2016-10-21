@@ -385,9 +385,11 @@ func TCPClientRequestConnect(name string, address string, options map[string]int
 		}
 	})
 
+	var uuid int64 = time.Now().UnixNano()
+
 	return func(message *Message, timeout time.Duration) *Message {
 
-		var id = UUID()
+		var id int64 = 0
 		var ch = make(chan Message)
 		defer close(ch)
 
@@ -396,6 +398,8 @@ func TCPClientRequestConnect(name string, address string, options map[string]int
 
 		GetDispatchMain().Async(func() {
 
+			id = uuid + 1
+			uuid = id
 			https[id] = ch
 
 			if !sendMessage(message) {
