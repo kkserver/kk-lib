@@ -369,8 +369,6 @@ func TCPClientRequestConnect(name string, address string, options map[string]int
 
 	var sendMessage, getName = TCPClientConnect(name, address, options, func(message *Message) {
 
-		log.Println(message.String())
-
 		var i = strings.LastIndex(message.To, ".")
 		var id, _ = strconv.ParseInt(message.To[i+1:], 10, 64)
 		var ch, ok = https[id]
