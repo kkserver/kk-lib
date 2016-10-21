@@ -393,14 +393,14 @@ func TCPClientRequestConnect(name string, address string, options map[string]int
 		var ch = make(chan Message)
 		defer close(ch)
 
-		message.From = fmt.Sprintf("%s.%d", getName(), id)
-		message.Method = "REQUEST"
-
 		GetDispatchMain().Async(func() {
 
 			id = uuid + 1
 			uuid = id
 			https[id] = ch
+
+			message.From = fmt.Sprintf("%s.%d", getName(), id)
+			message.Method = "REQUEST"
 
 			if !sendMessage(message) {
 				var r = Message{"TIMEOUT", "", "", "", []byte("")}
