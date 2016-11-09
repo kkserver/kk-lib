@@ -12,7 +12,7 @@ type Dispatch struct {
 
 func NewDispatch() *Dispatch {
 
-	var ch = make(chan func())
+	var ch = make(chan func(), 2048)
 
 	var v = Dispatch{ch, false, nil}
 
@@ -70,7 +70,7 @@ func (d *Dispatch) Sync(fn func()) {
 	<-ch
 }
 
-var _dispatch_main Dispatch = Dispatch{make(chan func()), false, nil}
+var _dispatch_main Dispatch = Dispatch{make(chan func(), 2048), false, nil}
 
 func DispatchMain() {
 

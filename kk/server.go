@@ -70,7 +70,7 @@ func NewTCPServer(name string, address string, maxconnections int) *TCPServer {
 
 	v.name = name
 	v.address = address
-	v.chan_break = make(chan bool)
+	v.chan_break = make(chan bool, 8)
 	v.clients = list.New()
 
 	var uuid int64 = time.Now().UnixNano()
@@ -97,9 +97,9 @@ func NewTCPServer(name string, address string, maxconnections int) *TCPServer {
 		}
 
 		var num_connections = 0
-		var chan_num_connections = make(chan bool)
+		var chan_num_connections = make(chan bool, 2048)
 
-		var chan_accept = make(chan bool)
+		var chan_accept = make(chan bool, 2048)
 
 		go func() {
 

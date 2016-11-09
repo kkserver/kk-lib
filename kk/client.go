@@ -1,6 +1,8 @@
 package kk
 
 import (
+	"bufio"
+	"encoding/gob"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -58,8 +60,8 @@ func NewTCPClient(name string, address string, options map[string]interface{}) *
 
 	v.name = name
 	v.address = address
-	v.chan_message = make(chan Message)
-	v.chan_break = make(chan bool)
+	v.chan_message = make(chan Message, 2048)
+	v.chan_break = make(chan bool, 8)
 
 	go func() {
 
@@ -82,32 +84,21 @@ func NewTCPClient(name string, address string, options map[string]interface{}) *
 			})
 		}
 
-		var chan_rd = make(chan bool)
-		var chan_wd = make(chan bool)
+		var chan_rd = make(chan bool, 8)
+		var chan_wd = make(chan bool, 8)
 
 		go func() {
 
-			var rd = NewMessageReader()
+			var rd = bufio.NewReader(conn)
+			var dec = gob.NewDecoder(rd)
 
 			for {
 
-				var m, err = rd.Read(conn)
+				var message = Message{}
 
-				if m != nil {
-					func(message Message) {
-						GetDispatchMain().Async(func() {
+				var err = dec.Decode(&message)
 
-							if message.Method == "CONNECTED" {
-								v.name = message.To
-								log.Println("CONNECTED " + v.name)
-							}
-
-							if v.OnMessage != nil {
-								v.OnMessage(&message)
-							}
-						})
-					}(*m)
-				} else if err != nil {
+				if err != nil {
 					func(err error) {
 						GetDispatchMain().Async(func() {
 							v.onDisconnected(err)
@@ -115,6 +106,22 @@ func NewTCPClient(name string, address string, options map[string]interface{}) *
 					}(err)
 					break
 				}
+
+				func(message Message) {
+
+					GetDispatchMain().Async(func() {
+
+						if message.Method == "CONNECTED" {
+							v.name = message.To
+							log.Println("CONNECTED " + v.name)
+						}
+
+						if v.OnMessage != nil {
+							v.OnMessage(&message)
+						}
+					})
+
+				}(message)
 			}
 
 			select {
@@ -128,7 +135,8 @@ func NewTCPClient(name string, address string, options map[string]interface{}) *
 
 		go func() {
 
-			var wd = NewMessageWriter()
+			var wd = bufio.NewWriter(conn)
+			var enc = gob.NewEncoder(wd)
 
 			{
 				var b []byte = nil
@@ -136,12 +144,12 @@ func NewTCPClient(name string, address string, options map[string]interface{}) *
 					b, _ = json.Marshal(options)
 				}
 				var m = Message{"CONNECT", name, "", "text/json", b}
-				wd.Write(&m)
+				enc.Encode(m)
 			}
 
 			for {
 
-				var r, err = wd.Done(conn)
+				var err = wd.Flush()
 
 				if err != nil {
 					func(err error) {
@@ -152,16 +160,12 @@ func NewTCPClient(name string, address string, options map[string]interface{}) *
 					break
 				}
 
-				if r {
+				var message, ok = <-v.chan_message
 
-					var m, ok = <-v.chan_message
-
-					if !ok {
-						break
-					} else {
-						wd.Write(&m)
-					}
-
+				if !ok {
+					break
+				} else {
+					enc.Encode(message)
 				}
 
 			}
@@ -199,24 +203,34 @@ func NewTCPClientConnection(conn net.Conn, id string) *TCPClient {
 
 	v.name = ""
 	v.address = conn.RemoteAddr().String()
-	v.chan_message = make(chan Message)
-	v.chan_break = make(chan bool)
+	v.chan_message = make(chan Message, 2048)
+	v.chan_break = make(chan bool, 8)
 	v.isconnected = true
 
 	go func() {
 
-		var chan_rd = make(chan bool)
-		var chan_wd = make(chan bool)
+		var chan_rd = make(chan bool, 8)
+		var chan_wd = make(chan bool, 8)
 
 		go func() {
 
-			var rd = NewMessageReader()
+			var rd = bufio.NewReader(conn)
+			var dec = gob.NewDecoder(rd)
 
 			for {
 
-				var m, err = rd.Read(conn)
+				var message = Message{}
 
-				if m != nil {
+				var err = dec.Decode(&message)
+
+				if err != nil {
+					func(err error) {
+						GetDispatchMain().Async(func() {
+							v.onDisconnected(err)
+						})
+					}(err)
+					break
+				} else {
 					func(message Message) {
 						GetDispatchMain().Async(func() {
 							if message.Method == "CONNECT" {
@@ -234,14 +248,7 @@ func NewTCPClientConnection(conn net.Conn, id string) *TCPClient {
 								v.OnMessage(&message)
 							}
 						})
-					}(*m)
-				} else if err != nil {
-					func(err error) {
-						GetDispatchMain().Async(func() {
-							v.onDisconnected(err)
-						})
-					}(err)
-					break
+					}(message)
 				}
 
 			}
@@ -257,11 +264,20 @@ func NewTCPClientConnection(conn net.Conn, id string) *TCPClient {
 
 		go func() {
 
-			var wd = NewMessageWriter()
+			var wd = bufio.NewWriter(conn)
+			var enc = gob.NewEncoder(wd)
 
 			for {
 
-				var r, err = wd.Done(conn)
+				var message, ok = <-v.chan_message
+
+				if !ok {
+					break
+				} else {
+					enc.Encode(message)
+				}
+
+				var err = wd.Flush()
 
 				if err != nil {
 					func(err error) {
@@ -270,18 +286,6 @@ func NewTCPClientConnection(conn net.Conn, id string) *TCPClient {
 						})
 					}(err)
 					break
-				}
-
-				if r {
-
-					var m, ok = <-v.chan_message
-
-					if !ok {
-						break
-					} else {
-						wd.Write(&m)
-					}
-
 				}
 
 			}
@@ -315,7 +319,7 @@ func TCPClientConnect(name string, address string, options map[string]interface{
 
 	var cli *TCPClient = nil
 	var cli_connect func() = nil
-	var isConnected = make(chan bool)
+	var isConnected = make(chan bool, 8)
 
 	cli_connect = func() {
 
@@ -390,7 +394,7 @@ func TCPClientRequestConnect(name string, address string, options map[string]int
 	return func(message *Message, timeout time.Duration) *Message {
 
 		var id int64 = 0
-		var ch = make(chan Message)
+		var ch = make(chan Message, 2048)
 		defer close(ch)
 
 		GetDispatchMain().Async(func() {
