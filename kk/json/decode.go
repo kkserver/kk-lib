@@ -18,14 +18,9 @@ func decodeNil(value reflect.Value) error {
 	switch v.Kind() {
 	case reflect.Interface:
 		v.Set(reflect.ValueOf(nil))
-	case reflect.Int:
-	case reflect.Int8:
-	case reflect.Int16:
-	case reflect.Int32:
-	case reflect.Int64:
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		v.SetInt(0)
-	case reflect.Float32:
-	case reflect.Float64:
+	case reflect.Float32, reflect.Float64:
 		v.SetFloat(0)
 	case reflect.Array:
 		v.Set(reflect.ValueOf(nil))
@@ -33,11 +28,7 @@ func decodeNil(value reflect.Value) error {
 		v.Set(reflect.ValueOf(nil))
 	case reflect.Bool:
 		v.SetBool(false)
-	case reflect.Uint:
-	case reflect.Uint8:
-	case reflect.Uint16:
-	case reflect.Uint32:
-	case reflect.Uint64:
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		v.SetUint(0)
 	case reflect.String:
 		v.SetString("")
@@ -51,14 +42,11 @@ func decodeString(vv string, value reflect.Value) error {
 	if v.Kind() == reflect.Ptr {
 		v = v.Elem()
 	}
+
 	switch v.Kind() {
 	case reflect.Interface:
 		v.Set(reflect.ValueOf(vv))
-	case reflect.Int:
-	case reflect.Int8:
-	case reflect.Int16:
-	case reflect.Int32:
-	case reflect.Int64:
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		{
 			if strings.HasPrefix(vv, "0x") {
 				var vvv, _ = strconv.ParseInt(vv[2:], 16, 64)
@@ -72,8 +60,7 @@ func decodeString(vv string, value reflect.Value) error {
 			}
 
 		}
-	case reflect.Float32:
-	case reflect.Float64:
+	case reflect.Float32, reflect.Float64:
 		{
 			var vvv, _ = strconv.ParseFloat(vv, 64)
 			v.SetFloat(vvv)
@@ -88,11 +75,7 @@ func decodeString(vv string, value reflect.Value) error {
 		} else {
 			v.SetBool(false)
 		}
-	case reflect.Uint:
-	case reflect.Uint8:
-	case reflect.Uint16:
-	case reflect.Uint32:
-	case reflect.Uint64:
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		{
 			var vvv, _ = strconv.ParseUint(vv, 10, 64)
 			v.SetUint(vvv)
@@ -111,14 +94,9 @@ func decodeFloat64(vv float64, value reflect.Value) error {
 	switch v.Kind() {
 	case reflect.Interface:
 		v.Set(reflect.ValueOf(vv))
-	case reflect.Int:
-	case reflect.Int8:
-	case reflect.Int16:
-	case reflect.Int32:
-	case reflect.Int64:
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		v.SetInt(int64(vv))
-	case reflect.Float32:
-	case reflect.Float64:
+	case reflect.Float32, reflect.Float64:
 		v.SetFloat(vv)
 	case reflect.Array:
 		v.Set(reflect.ValueOf(nil))
@@ -130,11 +108,7 @@ func decodeFloat64(vv float64, value reflect.Value) error {
 		} else {
 			v.SetBool(false)
 		}
-	case reflect.Uint:
-	case reflect.Uint8:
-	case reflect.Uint16:
-	case reflect.Uint32:
-	case reflect.Uint64:
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		v.SetUint(uint64(vv))
 	case reflect.String:
 		if float64(int64(vv)) == vv {
@@ -155,18 +129,13 @@ func decodeBoolean(vv bool, value reflect.Value) error {
 	switch v.Kind() {
 	case reflect.Interface:
 		v.Set(reflect.ValueOf(vv))
-	case reflect.Int:
-	case reflect.Int8:
-	case reflect.Int16:
-	case reflect.Int32:
-	case reflect.Int64:
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		if vv {
 			v.SetInt(1)
 		} else {
 			v.SetInt(0)
 		}
-	case reflect.Float32:
-	case reflect.Float64:
+	case reflect.Float32, reflect.Float64:
 		if vv {
 			v.SetFloat(1)
 		} else {
@@ -178,11 +147,7 @@ func decodeBoolean(vv bool, value reflect.Value) error {
 		v.Set(reflect.ValueOf(nil))
 	case reflect.Bool:
 		v.SetBool(vv)
-	case reflect.Uint:
-	case reflect.Uint8:
-	case reflect.Uint16:
-	case reflect.Uint32:
-	case reflect.Uint64:
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		if vv {
 			v.SetUint(1)
 		} else {
@@ -211,8 +176,7 @@ func decodeObject(dec *json.Decoder, value reflect.Value) error {
 	var fdvalue map[string]reflect.Value = nil
 
 	switch v.Kind() {
-	case reflect.Interface:
-	case reflect.Map:
+	case reflect.Interface, reflect.Map:
 		mapvalue = map[string]interface{}{}
 	case reflect.Struct:
 		fdvalue = map[string]reflect.Value{}
@@ -284,14 +248,6 @@ func decodeObject(dec *json.Decoder, value reflect.Value) error {
 				} else {
 					return errors.New("2 json decodeObject type: " + value.String())
 				}
-
-			case json.Delim:
-				switch token.(json.Delim).String() {
-				case "}":
-					return nil
-				default:
-					return errors.New("3 json decodeObject type: " + value.String())
-				}
 			default:
 				return errors.New("4 json decodeObject type: " + value.String())
 			}
@@ -322,15 +278,15 @@ func decodeArray(dec *json.Decoder, value reflect.Value) error {
 		v = v.Elem()
 	}
 
-	var vv []interface{} = nil
+	var vv reflect.Value
 	var valueType reflect.Type = nil
 
 	switch v.Kind() {
-	case reflect.Array:
+	case reflect.Slice, reflect.Array:
 		valueType = v.Type().Elem()
-		vv = reflect.New(v.Type()).Interface().([]interface{})
+		vv = reflect.New(v.Type()).Elem()
 	case reflect.Interface:
-		vv = []interface{}{}
+		vv = reflect.ValueOf([]interface{}{})
 	}
 
 	fn := func() error {
@@ -347,28 +303,21 @@ func decodeArray(dec *json.Decoder, value reflect.Value) error {
 				return errors.New("json decodeArray type: " + value.Type().Name())
 			}
 
-			switch token.(type) {
-			case json.Delim:
-				switch token.(json.Delim).String() {
-				case "]":
-					return nil
-				}
-			}
-
-			var vvv interface{} = nil
+			var vvv reflect.Value
 
 			if valueType != nil {
-				vvv = reflect.New(valueType)
+				vvv = reflect.New(valueType).Elem()
 			}
 
-			err = decodeToken(dec, token, reflect.ValueOf(&vvv))
+			err = decodeToken(dec, token, vvv)
 
 			if err != nil {
 				return err
 			}
 
-			if vv != nil {
-				vv = append(vv, vvv)
+			switch vv.Kind() {
+			case reflect.Slice, reflect.Array:
+				vv = reflect.Append(vv, vvv)
 			}
 		}
 
@@ -381,8 +330,9 @@ func decodeArray(dec *json.Decoder, value reflect.Value) error {
 		return err
 	}
 
-	if vv != nil {
-		v.Set(reflect.ValueOf(vv))
+	switch v.Kind() {
+	case reflect.Slice, reflect.Array, reflect.Interface:
+		v.Set(vv)
 	}
 
 	return nil
@@ -405,9 +355,19 @@ func decodeToken(dec *json.Decoder, token json.Token, value reflect.Value) error
 		var d = token.(json.Delim)
 		switch d.String() {
 		case "{":
-			return decodeObject(dec, value)
+			err := decodeObject(dec, value)
+			if err != nil {
+				return err
+			}
+			_, err = dec.Token()
+			return err
 		case "[":
-			return decodeArray(dec, value)
+			err := decodeArray(dec, value)
+			if err != nil {
+				return err
+			}
+			_, err = dec.Token()
+			return err
 		default:
 			return errors.New("json decodeToken : " + d.String())
 		}
