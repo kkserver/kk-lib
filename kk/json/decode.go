@@ -232,7 +232,13 @@ func decodeObject(dec *json.Decoder, value reflect.Value) error {
 					} else if fdvalue != nil {
 						fd, ok := fdvalue[key]
 						if ok {
+
+							if fd.Kind() == reflect.Ptr {
+								fd.Set(reflect.New(fd.Type().Elem()))
+							}
+
 							err = decodeToken(dec, token, fd)
+
 							if err != nil {
 								return err
 							}
