@@ -1,167 +1,13 @@
 package json
 
 import (
+	V "../value"
 	"bytes"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"reflect"
-	"strconv"
 	"strings"
 )
-
-func decodeNil(value reflect.Value) error {
-	var v = value
-	if v.Kind() == reflect.Ptr {
-		v = v.Elem()
-	}
-	switch v.Kind() {
-	case reflect.Interface:
-		v.Set(reflect.ValueOf(nil))
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		v.SetInt(0)
-	case reflect.Float32, reflect.Float64:
-		v.SetFloat(0)
-	case reflect.Array:
-		v.Set(reflect.ValueOf(nil))
-	case reflect.Map:
-		v.Set(reflect.ValueOf(nil))
-	case reflect.Bool:
-		v.SetBool(false)
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		v.SetUint(0)
-	case reflect.String:
-		v.SetString("")
-	}
-	return nil
-}
-
-func decodeString(vv string, value reflect.Value) error {
-	var v = value
-
-	if v.Kind() == reflect.Ptr {
-		v = v.Elem()
-	}
-
-	switch v.Kind() {
-	case reflect.Interface:
-		v.Set(reflect.ValueOf(vv))
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		{
-			if strings.HasPrefix(vv, "0x") {
-				var vvv, _ = strconv.ParseInt(vv[2:], 16, 64)
-				v.SetInt(vvv)
-			} else if strings.HasPrefix(vv, "0") {
-				var vvv, _ = strconv.ParseInt(vv[1:], 8, 64)
-				v.SetInt(vvv)
-			} else {
-				var vvv, _ = strconv.ParseInt(vv, 10, 64)
-				v.SetInt(vvv)
-			}
-
-		}
-	case reflect.Float32, reflect.Float64:
-		{
-			var vvv, _ = strconv.ParseFloat(vv, 64)
-			v.SetFloat(vvv)
-		}
-	case reflect.Array:
-		v.Set(reflect.ValueOf(nil))
-	case reflect.Map:
-		v.Set(reflect.ValueOf(nil))
-	case reflect.Bool:
-		if vv == "true" || vv == "yes" || vv == "1" {
-			v.SetBool(true)
-		} else {
-			v.SetBool(false)
-		}
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		{
-			var vvv, _ = strconv.ParseUint(vv, 10, 64)
-			v.SetUint(vvv)
-		}
-	case reflect.String:
-		v.SetString(vv)
-	}
-	return nil
-}
-
-func decodeFloat64(vv float64, value reflect.Value) error {
-	var v = value
-	if v.Kind() == reflect.Ptr {
-		v = v.Elem()
-	}
-	switch v.Kind() {
-	case reflect.Interface:
-		v.Set(reflect.ValueOf(vv))
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		v.SetInt(int64(vv))
-	case reflect.Float32, reflect.Float64:
-		v.SetFloat(vv)
-	case reflect.Array:
-		v.Set(reflect.ValueOf(nil))
-	case reflect.Map:
-		v.Set(reflect.ValueOf(nil))
-	case reflect.Bool:
-		if vv != 0 {
-			v.SetBool(true)
-		} else {
-			v.SetBool(false)
-		}
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		v.SetUint(uint64(vv))
-	case reflect.String:
-		if float64(int64(vv)) == vv {
-			v.SetString(fmt.Sprintf("%.0f", vv))
-		} else {
-			v.SetString(fmt.Sprintf("%f", vv))
-		}
-	}
-
-	return nil
-}
-
-func decodeBoolean(vv bool, value reflect.Value) error {
-	var v = value
-	if v.Kind() == reflect.Ptr {
-		v = v.Elem()
-	}
-	switch v.Kind() {
-	case reflect.Interface:
-		v.Set(reflect.ValueOf(vv))
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		if vv {
-			v.SetInt(1)
-		} else {
-			v.SetInt(0)
-		}
-	case reflect.Float32, reflect.Float64:
-		if vv {
-			v.SetFloat(1)
-		} else {
-			v.SetFloat(0)
-		}
-	case reflect.Array:
-		v.Set(reflect.ValueOf(nil))
-	case reflect.Map:
-		v.Set(reflect.ValueOf(nil))
-	case reflect.Bool:
-		v.SetBool(vv)
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		if vv {
-			v.SetUint(1)
-		} else {
-			v.SetUint(0)
-		}
-	case reflect.String:
-		if vv {
-			v.SetString("true")
-		} else {
-			v.SetString("false")
-		}
-	}
-	return nil
-}
 
 func decodeObject(dec *json.Decoder, value reflect.Value) error {
 
@@ -347,16 +193,20 @@ func decodeArray(dec *json.Decoder, value reflect.Value) error {
 func decodeToken(dec *json.Decoder, token json.Token, value reflect.Value) error {
 
 	if token == nil {
-		return decodeNil(value)
+		V.SetValue(value, reflect.ValueOf(nil))
+		return nil
 	}
 
 	switch token.(type) {
 	case string:
-		return decodeString(token.(string), value)
+		V.SetValue(value, reflect.ValueOf(token.(string)))
+		return nil
 	case float64:
-		return decodeFloat64(token.(float64), value)
+		V.SetValue(value, reflect.ValueOf(token.(float64)))
+		return nil
 	case bool:
-		return decodeBoolean(token.(bool), value)
+		V.SetValue(value, reflect.ValueOf(token.(bool)))
+		return nil
 	case json.Delim:
 		var d = token.(json.Delim)
 		switch d.String() {
