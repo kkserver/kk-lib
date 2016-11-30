@@ -1,8 +1,8 @@
 package remote
 
 import (
-	app "../"
-	kk "../../"
+	"github.com/kkserver/kk-lib/kk"
+	"github.com/kkserver/kk-lib/kk/app"
 )
 
 type RemoteSendMessageTask struct {

@@ -1,9 +1,9 @@
 package app
 
 import (
-	"../inifile"
-	"../value"
 	"errors"
+	"github.com/kkserver/kk-lib/kk/inifile"
+	"github.com/kkserver/kk-lib/kk/value"
 	"reflect"
 	"strings"
 )
@@ -13,8 +13,16 @@ const ERROR_UNKNOWN = 0x1000
 var Break = errors.New("break")
 
 type Result struct {
-	Errno  int    `json:"errno"`
-	Errmsg string `json:"errmsg"`
+	Errno  int    `json:"errno,omitempty"`
+	Errmsg string `json:"errmsg,omitempty"`
+}
+
+type IObtain interface {
+	Obtain()
+}
+
+type IRecycle interface {
+	Recycle()
 }
 
 type ITask interface {
@@ -32,9 +40,19 @@ type Service struct {
 }
 
 type IApp interface {
+	IObtain
+	IRecycle
 }
 
 type App struct {
+}
+
+func (A *App) Recycle() {
+
+}
+
+func (A *App) Obtain() {
+
 }
 
 func (T *Task) GetResult() interface{} {
@@ -42,10 +60,10 @@ func (T *Task) GetResult() interface{} {
 }
 
 func (S *Service) Handle(app IApp, task ITask) error {
-	return S.ReflectHandle(app, task, S)
+	return ServiceReflectHandle(app, task, S)
 }
 
-func (S *Service) ReflectHandle(app IApp, task ITask, service IService) error {
+func ServiceReflectHandle(app IApp, task ITask, service IService) error {
 	var t = reflect.TypeOf(task)
 	var name = t.String()
 	var v = reflect.ValueOf(service)
@@ -84,30 +102,79 @@ func Load(app IApp, path string) error {
 		} else {
 			keys = strings.Split(f.Section, ".")
 		}
-
-		keys = append(keys, f.Key)
-
 		var v = reflect.ValueOf(app)
 
-		for _, key := range keys {
-			v = value.Get(v, key)
-			switch v.Kind() {
-			case reflect.Interface:
-				if v.IsNil() {
-					v.Set(reflect.ValueOf(map[string]interface{}{}))
-				}
-			case reflect.Ptr:
-				if v.IsNil() {
-					v.Set(reflect.New(v.Type().Elem()))
-				}
-			}
-		}
-
-		value.SetValue(v, reflect.ValueOf(f.Value))
+		value.SetWithKeys(v, append(keys, f.Key), reflect.ValueOf(f.Value))
 
 	}
 
 	return nil
+}
+
+func Obtain(obtain IObtain) {
+
+	obtain.Obtain()
+
+	var v = reflect.ValueOf(obtain)
+
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
+
+	for i := 0; i < v.NumField(); i++ {
+
+		fd := v.Field(i)
+
+		if fd.Kind() == reflect.Ptr && !fd.IsNil() && fd.CanInterface() {
+
+			vv := fd.Interface()
+
+			if vv != nil {
+
+				r, ok := vv.(IObtain)
+
+				if ok {
+					Obtain(r)
+				}
+			}
+
+		}
+
+	}
+
+}
+
+func Recycle(recycle IRecycle) {
+
+	recycle.Recycle()
+
+	var v = reflect.ValueOf(recycle)
+
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
+
+	for i := 0; i < v.NumField(); i++ {
+
+		fd := v.Field(i)
+
+		if fd.Kind() == reflect.Ptr && !fd.IsNil() && fd.CanInterface() {
+
+			vv := fd.Interface()
+
+			if vv != nil {
+
+				r, ok := vv.(IRecycle)
+
+				if ok {
+					Recycle(r)
+				}
+			}
+
+		}
+
+	}
+
 }
 
 func Handle(app IApp, task ITask) error {

@@ -7,17 +7,32 @@ import (
 	"strings"
 )
 
+type IGetter interface {
+	GetValue(key string) reflect.Value
+}
+
 func Get(object reflect.Value, key string) reflect.Value {
 
 	switch object.Kind() {
 	case reflect.Ptr:
 		if !object.IsNil() {
+			v, ok := object.Interface().(IGetter)
+			if ok {
+				return v.GetValue(key)
+			}
 			return Get(object.Elem(), key)
 		}
 	case reflect.Map:
 		return object.MapIndex(reflect.ValueOf(key))
 	case reflect.Struct:
 		return object.FieldByName(key)
+	case reflect.Interface:
+		if !object.IsNil() {
+			v, ok := object.Interface().(IGetter)
+			if ok {
+				return v.GetValue(key)
+			}
+		}
 	}
 
 	return reflect.ValueOf(nil)
@@ -35,49 +50,95 @@ func GetWithKeys(object reflect.Value, keys []string) reflect.Value {
 }
 
 func Set(object reflect.Value, key string, value reflect.Value) {
+	SetWithKeyIndex(object, []string{key}, 0, value)
+}
 
-	switch object.Kind() {
-	case reflect.Map:
-		object.SetMapIndex(reflect.ValueOf(key), value)
-	case reflect.Struct:
-		SetValue(object.FieldByName(key), value)
-	case reflect.Interface:
-		object.Set(value)
-	case reflect.Ptr:
-		if object.IsNil() {
-			object.Set(reflect.New(object.Type().Elem()))
+func SetWithKeyIndex(object reflect.Value, keys []string, i int, value reflect.Value) {
+
+	if i < len(keys) {
+
+		key := keys[i]
+
+		v := Get(object, key)
+
+		if v.IsValid() {
+
+			switch v.Kind() {
+			case reflect.Map:
+				if v.IsNil() {
+					vv := reflect.MakeMap(v.Type())
+					SetWithKeyIndex(vv, keys, i+1, value)
+					v.Set(vv)
+				} else {
+					SetWithKeyIndex(v, keys, i+1, value)
+				}
+			case reflect.Interface:
+				if v.IsNil() {
+					vv := reflect.ValueOf(map[string]interface{}{})
+					SetWithKeyIndex(vv, keys, i+1, value)
+					v.Set(vv)
+				} else {
+					SetWithKeyIndex(v, keys, i+1, value)
+				}
+			case reflect.Slice:
+
+				if v.IsNil() {
+					v.Set(reflect.MakeSlice(v.Type(), 0, 0))
+				}
+
+				switch v.Type().Elem().Kind() {
+				case reflect.Ptr:
+					vv := reflect.New(v.Type().Elem().Elem())
+					SetWithKeyIndex(vv, keys, i+1, value)
+					v.Set(reflect.Append(v, vv))
+				case reflect.Interface:
+					var vvv interface{} = nil
+					vv := reflect.ValueOf(vvv)
+					SetWithKeyIndex(vv, keys, i+1, value)
+					v.Set(reflect.Append(v, vv))
+				default:
+					vv := reflect.New(v.Type().Elem())
+					SetWithKeyIndex(vv, keys, i+1, value)
+					v.Set(reflect.Append(v, vv.Elem()))
+				}
+			case reflect.Ptr:
+				if v.IsNil() {
+					vv := reflect.New(v.Type().Elem())
+					SetWithKeyIndex(vv, keys, i+1, value)
+					v.Set(vv)
+				} else {
+					SetWithKeyIndex(v, keys, i+1, value)
+				}
+			default:
+				SetWithKeyIndex(v, keys, i+1, value)
+			}
+
+		} else {
+
+			switch object.Kind() {
+			case reflect.Map:
+				switch object.Type().Elem().Kind() {
+				case reflect.Ptr:
+					v = reflect.New(object.Type().Elem().Elem())
+				case reflect.Struct:
+					v = reflect.New(object.Type().Elem()).Elem()
+				}
+				if v.IsValid() {
+					SetWithKeyIndex(v, keys, i+1, value)
+					object.SetMapIndex(reflect.ValueOf(key), v)
+				}
+			}
+
 		}
-		Set(object.Elem(), key, value)
+
+	} else {
+		SetValue(object, value)
 	}
 
 }
 
 func SetWithKeys(object reflect.Value, keys []string, value reflect.Value) {
-
-	var v = object
-
-	for i, key := range keys {
-
-		if i+1 == len(keys) {
-			Set(v, key, value)
-			return
-		}
-
-		v = Get(v, key)
-		switch v.Kind() {
-		case reflect.Interface:
-			if v.IsNil() {
-				v.Set(reflect.ValueOf(map[string]interface{}{}))
-			}
-		case reflect.Ptr:
-			if v.IsNil() {
-				v.Set(reflect.New(object.Type().Elem()))
-			}
-		}
-	}
-
-	SetValue(v, value)
-
+	SetWithKeyIndex(object, keys, 0, value)
 }
 
 func IntValue(value reflect.Value, defaultValue int64) int64 {
@@ -104,6 +165,7 @@ func IntValue(value reflect.Value, defaultValue int64) int64 {
 	case reflect.String:
 		{
 			vv := v.String()
+
 			if strings.HasPrefix(vv, "0x") {
 				var vvv, _ = strconv.ParseInt(vv[2:], 16, 64)
 				return vvv
@@ -270,8 +332,23 @@ func SetValue(object reflect.Value, value reflect.Value) {
 
 	var v = object
 
+	if v.Kind() == reflect.Func {
+
+		fn, ok := v.Interface().(func(value reflect.Value))
+
+		if ok && fn != nil {
+			fn(value)
+		}
+
+		return
+	}
+
 	if v.Kind() == reflect.Ptr {
 		v = v.Elem()
+	}
+
+	if !v.CanSet() {
+		return
 	}
 
 	switch v.Kind() {

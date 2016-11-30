@@ -10,6 +10,7 @@ import (
 
 type MainApp struct {
 	app.App
+	DB     app.DBConfig
 	Remote *remote.Service
 	Client *client.Service
 }

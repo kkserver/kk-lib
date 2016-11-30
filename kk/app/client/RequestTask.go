@@ -1,7 +1,7 @@
 package client
 
 import (
-	app "../"
+	"github.com/kkserver/kk-lib/kk/app"
 	"time"
 )
 

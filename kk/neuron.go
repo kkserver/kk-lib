@@ -1,7 +1,7 @@
 package kk
 
 import (
-	Value "./value"
+	Value "github.com/kkserver/kk-lib/kk/value"
 	"reflect"
 )
 

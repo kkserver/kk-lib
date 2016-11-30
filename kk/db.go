@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	Value "github.com/kkserver/kk-lib/kk/value"
 	"log"
 	"reflect"
 	"strings"
@@ -21,6 +22,38 @@ const DBFieldTypeLongText = 7
 type DBField struct {
 	Length int
 	Type   int
+}
+
+func (fd *DBField) GetValue(key string) reflect.Value {
+	if key == "Length" {
+		return reflect.ValueOf(&fd.Length)
+	} else if key == "Type" {
+		return reflect.ValueOf(func(value reflect.Value) {
+			if value.Kind() == reflect.Struct {
+				switch value.String() {
+				case "string":
+					fd.Type = DBFieldTypeString
+				case "int":
+					fd.Type = DBFieldTypeInt
+				case "int64":
+					fd.Type = DBFieldTypeInt64
+				case "double":
+					fd.Type = DBFieldTypeDouble
+				case "boolean":
+					fd.Type = DBFieldTypeBoolean
+				case "text":
+					fd.Type = DBFieldTypeText
+				case "longtext":
+					fd.Type = DBFieldTypeLongText
+				default:
+					fd.Type = DBFieldTypeString
+				}
+			} else {
+				fd.Type = int(Value.IntValue(value, int64(DBFieldTypeString)))
+			}
+		})
+	}
+	return reflect.ValueOf(nil)
 }
 
 func (fd *DBField) DBType() string {
@@ -66,6 +99,40 @@ type DBIndex struct {
 	Field  string
 	Type   int
 	Unique bool
+}
+
+func (fd *DBIndex) GetValue(key string) reflect.Value {
+	if key == "Field" {
+		return reflect.ValueOf(&fd.Field)
+	} else if key == "Type" {
+		return reflect.ValueOf(func(value reflect.Value) {
+			if value.Kind() == reflect.Struct {
+				switch value.String() {
+				case "string":
+					fd.Type = DBFieldTypeString
+				case "int":
+					fd.Type = DBFieldTypeInt
+				case "int64":
+					fd.Type = DBFieldTypeInt64
+				case "double":
+					fd.Type = DBFieldTypeDouble
+				case "boolean":
+					fd.Type = DBFieldTypeBoolean
+				case "text":
+					fd.Type = DBFieldTypeText
+				case "longtext":
+					fd.Type = DBFieldTypeLongText
+				default:
+					fd.Type = DBFieldTypeString
+				}
+			} else {
+				fd.Type = int(Value.IntValue(value, int64(DBFieldTypeString)))
+			}
+		})
+	} else if key == "Unique" {
+		return reflect.ValueOf(&fd.Unique)
+	}
+	return reflect.ValueOf(nil)
 }
 
 func (idx *DBIndex) DBType() string {

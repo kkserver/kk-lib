@@ -1,8 +1,8 @@
 package inifile
 
 import (
-	"../value"
 	"bufio"
+	"github.com/kkserver/kk-lib/kk/value"
 	"os"
 	"reflect"
 	"strings"
@@ -47,8 +47,8 @@ func (F *IniFile) Next() bool {
 		}
 
 		sline := strings.TrimSpace(string(line))
-
-		if strings.HasPrefix(sline, "[") && strings.HasSuffix(sline, "]") {
+		if strings.HasPrefix(sline, "#") {
+		} else if strings.HasPrefix(sline, "[") && strings.HasSuffix(sline, "]") {
 			F.Section = sline[1 : len(sline)-1]
 		} else if strings.Contains(sline, "=") {
 			i := strings.Index(sline, "=")

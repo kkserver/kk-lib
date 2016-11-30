@@ -1,10 +1,10 @@
 package client
 
 import (
-	app "../"
-	kk "../../"
-	json "../../json"
 	"errors"
+	"github.com/kkserver/kk-lib/kk"
+	"github.com/kkserver/kk-lib/kk/app"
+	"github.com/kkserver/kk-lib/kk/json"
 	"time"
 )
 
@@ -24,8 +24,7 @@ type Service struct {
 }
 
 func (S *Service) Handle(a app.IApp, task app.ITask) error {
-
-	return S.ReflectHandle(a, task, S)
+	return app.ServiceReflectHandle(a, task, S)
 }
 
 func (S *Service) HandleInitTask(a app.IApp, task *app.InitTask) error {

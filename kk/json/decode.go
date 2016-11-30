@@ -1,10 +1,10 @@
 package json
 
 import (
-	V "../value"
 	"bytes"
 	"encoding/json"
 	"errors"
+	V "github.com/kkserver/kk-lib/kk/value"
 	"reflect"
 	"strings"
 )
