@@ -183,14 +183,14 @@ func DBBuild(db *sql.DB, table *DBTable, prefix string, auto_increment int) erro
 			var fd, ok = tb.Fields[name]
 			if ok {
 				if fd.Type != field.Type || fd.Length != field.Length {
-					_, err = db.Exec(fmt.Sprintf("ALTER TABLE %s CHANGE %s %s %s;", tbname, name, name, field.DBType()))
+					_, err = db.Exec(fmt.Sprintf("ALTER TABLE `%s` CHANGE `%s` `%s` %s;", tbname, name, name, field.DBType()))
 					if err != nil {
 						log.Println(err)
 					}
 					hasUpdate = true
 				}
 			} else {
-				_, err = db.Exec(fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s;", tbname, name, field.DBType()))
+				_, err = db.Exec(fmt.Sprintf("ALTER TABLE `%s` ADD COLUMN `%s` %s;", tbname, name, field.DBType()))
 				if err != nil {
 					log.Println(err)
 				}
@@ -202,12 +202,12 @@ func DBBuild(db *sql.DB, table *DBTable, prefix string, auto_increment int) erro
 			var _, ok = tb.Indexs[name]
 			if !ok {
 				if index.Unique {
-					_, err = db.Exec(fmt.Sprintf("CREATE UNIQUE INDEX %s ON %s (%s %s);", name, tbname, name, index.DBType()))
+					_, err = db.Exec(fmt.Sprintf("CREATE UNIQUE INDEX `%s` ON `%s` (`%s` %s);", name, tbname, name, index.DBType()))
 					if err != nil {
 						log.Println(err)
 					}
 				} else {
-					_, err = db.Exec(fmt.Sprintf("CREATE INDEX %s ON %s (%s %s);", name, tbname, name, index.DBType()))
+					_, err = db.Exec(fmt.Sprintf("CREATE INDEX `%s` ON `%s` (`%s` %s);", name, tbname, name, index.DBType()))
 					if err != nil {
 						log.Println(err)
 					}
@@ -229,10 +229,10 @@ func DBBuild(db *sql.DB, table *DBTable, prefix string, auto_increment int) erro
 		var s bytes.Buffer
 		var i int = 0
 
-		s.WriteString(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (", tbname))
+		s.WriteString(fmt.Sprintf("CREATE TABLE IF NOT EXISTS `%s` (", tbname))
 
 		if table.Key != "" {
-			s.WriteString(fmt.Sprintf("%s BIGINT NOT NULL AUTO_INCREMENT", table.Key))
+			s.WriteString(fmt.Sprintf("`%s` BIGINT NOT NULL AUTO_INCREMENT", table.Key))
 			i += 1
 		}
 
@@ -240,20 +240,20 @@ func DBBuild(db *sql.DB, table *DBTable, prefix string, auto_increment int) erro
 			if i != 0 {
 				s.WriteString(",")
 			}
-			s.WriteString(fmt.Sprintf("%s %s", name, field.DBType()))
+			s.WriteString(fmt.Sprintf("`%s` %s", name, field.DBType()))
 			i += 1
 		}
 
 		if table.Key != "" {
-			s.WriteString(fmt.Sprintf(", PRIMARY KEY(%s) ", table.Key))
+			s.WriteString(fmt.Sprintf(", PRIMARY KEY(`%s`) ", table.Key))
 		}
 
 		for name, index := range table.Indexs {
 
 			if index.Unique {
-				s.WriteString(fmt.Sprintf(",UNIQUE INDEX %s (%s %s)", name, name, index.DBType()))
+				s.WriteString(fmt.Sprintf(",UNIQUE INDEX `%s` (`%s` %s)", name, name, index.DBType()))
 			} else {
-				s.WriteString(fmt.Sprintf(",INDEX %s (%s %s)", name, name, index.DBType()))
+				s.WriteString(fmt.Sprintf(",INDEX `%s` (`%s` %s)", name, name, index.DBType()))
 			}
 
 		}
@@ -288,18 +288,18 @@ type DBQueryer interface {
 
 func DBQuery(db DBQueryer, table *DBTable, prefix string, sql string, args ...interface{}) (*sql.Rows, error) {
 	var tbname = prefix + table.Name
-	return db.Query(fmt.Sprintf("SELECT * FROM %s %s", tbname, sql), args...)
+	return db.Query(fmt.Sprintf("SELECT * FROM `%s` %s", tbname, sql), args...)
 }
 
 func DBDelete(db *sql.DB, table *DBTable, prefix string, sql string, args ...interface{}) (sql.Result, error) {
 	var tbname = prefix + table.Name
-	return db.Exec(fmt.Sprintf("DELETE FROM %s %s", tbname, sql), args...)
+	return db.Exec(fmt.Sprintf("DELETE FROM `%s` %s", tbname, sql), args...)
 }
 
 func DBQueryCount(db DBQueryer, table *DBTable, prefix string, sql string, args ...interface{}) (int, error) {
 	var tbname = prefix + table.Name
 
-	var rows, err = db.Query(fmt.Sprintf("SELECT COUNT(*) as c FROM %s %s", tbname, sql), args...)
+	var rows, err = db.Query(fmt.Sprintf("SELECT COUNT(*) as c FROM `%s` %s", tbname, sql), args...)
 
 	if err != nil {
 		return 0, err
@@ -332,7 +332,7 @@ func DBUpdateWithKeys(db *sql.DB, table *DBTable, prefix string, object interfac
 	var key interface{} = nil
 	var n = 0
 
-	s.WriteString(fmt.Sprintf("UPDATE %s SET ", tbname))
+	s.WriteString(fmt.Sprintf("UPDATE `%s` SET ", tbname))
 
 	var tbv = reflect.ValueOf(object).Elem()
 	var tb = tbv.Type()
@@ -350,14 +350,14 @@ func DBUpdateWithKeys(db *sql.DB, table *DBTable, prefix string, object interfac
 				if n != 0 {
 					s.WriteString(",")
 				}
-				s.WriteString(fmt.Sprintf(" %s=?", name))
+				s.WriteString(fmt.Sprintf(" `%s`=?", name))
 				fs[n] = fbv.Interface()
 				n += 1
 			}
 		}
 	}
 
-	s.WriteString(fmt.Sprintf(" WHERE %s=?", table.Key))
+	s.WriteString(fmt.Sprintf(" WHERE `%s`=?", table.Key))
 
 	fs[n] = key
 
@@ -377,7 +377,7 @@ func DBInsert(db *sql.DB, table *DBTable, prefix string, object interface{}) (sq
 	var n = 0
 	var key reflect.Value
 
-	s.WriteString(fmt.Sprintf("INSERT INTO %s(", tbname))
+	s.WriteString(fmt.Sprintf("INSERT INTO `%s`(", tbname))
 	w.WriteString(" VALUES (")
 
 	var tbv = reflect.ValueOf(object).Elem()
@@ -397,7 +397,7 @@ func DBInsert(db *sql.DB, table *DBTable, prefix string, object interface{}) (sq
 					s.WriteString(",")
 					w.WriteString(",")
 				}
-				s.WriteString(name)
+				s.WriteString("`" + name + "`")
 				w.WriteString("?")
 				fs[n] = fbv.Interface()
 				n += 1

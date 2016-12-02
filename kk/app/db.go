@@ -31,8 +31,7 @@ func (C *DBConfig) Get(app IApp) (*sql.DB, error) {
 			_, err = db.Exec("SET NAMES " + C.Charset)
 
 			if err != nil {
-				C.db.Close()
-				C.db = nil
+				db.Close()
 				return nil, err
 			}
 		}
@@ -43,8 +42,7 @@ func (C *DBConfig) Get(app IApp) (*sql.DB, error) {
 		err = kk.DBInit(db)
 
 		if err != nil {
-			C.db.Close()
-			C.db = nil
+			db.Close()
 			return nil, err
 		}
 
@@ -65,8 +63,8 @@ func (C *DBConfig) Get(app IApp) (*sql.DB, error) {
 				if ok {
 					err = kk.DBBuild(db, r, C.Prefix, 1)
 					if err != nil {
-						C.db.Close()
-						C.db = nil
+						db.Close()
+						db = nil
 						return nil, err
 					}
 				}
@@ -75,6 +73,7 @@ func (C *DBConfig) Get(app IApp) (*sql.DB, error) {
 
 		}
 
+		C.db = db
 	}
 
 	return C.db, nil
