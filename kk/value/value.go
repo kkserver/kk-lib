@@ -25,6 +25,12 @@ func Get(object reflect.Value, key string) reflect.Value {
 	case reflect.Map:
 		return object.MapIndex(reflect.ValueOf(key))
 	case reflect.Struct:
+		if object.CanAddr() {
+			v, ok := object.Addr().Interface().(IGetter)
+			if ok {
+				return v.GetValue(key)
+			}
+		}
 		return object.FieldByName(key)
 	case reflect.Interface:
 		if !object.IsNil() {

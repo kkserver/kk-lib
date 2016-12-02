@@ -29,7 +29,7 @@ func (fd *DBField) GetValue(key string) reflect.Value {
 		return reflect.ValueOf(&fd.Length)
 	} else if key == "Type" {
 		return reflect.ValueOf(func(value reflect.Value) {
-			if value.Kind() == reflect.Struct {
+			if value.Kind() == reflect.String {
 				switch value.String() {
 				case "string":
 					fd.Type = DBFieldTypeString
@@ -106,7 +106,7 @@ func (fd *DBIndex) GetValue(key string) reflect.Value {
 		return reflect.ValueOf(&fd.Field)
 	} else if key == "Type" {
 		return reflect.ValueOf(func(value reflect.Value) {
-			if value.Kind() == reflect.Struct {
+			if value.Kind() == reflect.String {
 				switch value.String() {
 				case "string":
 					fd.Type = DBFieldTypeString
