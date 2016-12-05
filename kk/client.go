@@ -113,7 +113,7 @@ func NewTCPClient(name string, address string, options map[string]interface{}) *
 
 						if message.Method == "CONNECTED" {
 							v.name = message.To
-							log.Println("CONNECTED " + v.name)
+							log.Println("CONNECTED " + v.name + " " + string(message.Content))
 						}
 
 						if v.OnMessage != nil {
@@ -242,7 +242,7 @@ func NewTCPClientConnection(conn net.Conn, id string) *TCPClient {
 								if message.Type == "text/json" && message.Content != nil {
 									json.Unmarshal(message.Content, &v.options)
 								}
-								v.Send(&Message{"CONNECTED", v.name, v.name, "", []byte("")}, nil)
+								v.Send(&Message{"CONNECTED", v.name, v.name, "text", []byte(v.Address())}, nil)
 								log.Println("CONNECT " + v.name + " address: " + v.Address())
 							} else if v.OnMessage != nil {
 								v.OnMessage(&message)
