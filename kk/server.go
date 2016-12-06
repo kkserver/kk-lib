@@ -18,6 +18,7 @@ type TCPServer struct {
 	OnFail         func(err error)
 	OnAccept       func(client *TCPClient)
 	OnDisconnected func(client *TCPClient, err error)
+	OnConnected    func(client *TCPClient)
 }
 
 func (c *TCPServer) Break() {
@@ -171,6 +172,11 @@ func NewTCPServer(name string, address string, maxconnections int) *TCPServer {
 						client.OnMessage = func(message *Message) {
 							if v.OnMessage != nil {
 								v.OnMessage(message, client)
+							}
+						}
+						client.OnConnected = func() {
+							if v.OnConnected != nil {
+								v.OnConnected(client)
 							}
 						}
 						if v.OnAccept != nil {

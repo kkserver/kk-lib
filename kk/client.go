@@ -244,6 +244,9 @@ func NewTCPClientConnection(conn net.Conn, id string) *TCPClient {
 								}
 								v.Send(&Message{"CONNECTED", v.name, v.name, "text", []byte(v.Address())}, nil)
 								log.Println("CONNECT " + v.name + " address: " + v.Address())
+								if v.OnConnected != nil {
+									v.OnConnected()
+								}
 							} else if v.OnMessage != nil {
 								v.OnMessage(&message)
 							}
