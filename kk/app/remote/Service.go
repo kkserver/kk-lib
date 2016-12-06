@@ -24,6 +24,8 @@ type Counter struct {
 	MinInterval int64 `json:"minInterval"`
 	MaxInterval int64 `json:"maxInterval"`
 	Atime       int64 `json:"atime"`
+	Duration    int64 `json:"duration"`
+	Size        int64 `json:"size"`
 }
 
 type Service struct {
@@ -116,6 +118,7 @@ func (S *Service) onMessage(a app.IApp, message *kk.Message) {
 	}
 
 	var atime = time.Now().UnixNano()
+	var size = int64(len(message.Content))
 
 	go func() {
 
@@ -123,9 +126,13 @@ func (S *Service) onMessage(a app.IApp, message *kk.Message) {
 		var interval = time.Now().UnixNano() - atime
 
 		kk.GetDispatchMain().Async(func() {
+
 			S.counter.Count = S.counter.Count + 1
 			S.counter.Interval = (S.counter.Count*S.counter.Interval + interval) / S.counter.Count
 			S.counter.Atime = atime
+			S.counter.Duration = S.counter.Duration + interval
+			S.counter.Size = S.counter.Size + size
+
 			if S.counter.Count == 1 {
 				S.counter.MaxInterval = interval
 				S.counter.MinInterval = interval
