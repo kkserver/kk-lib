@@ -10,17 +10,30 @@ import (
 )
 
 type Config struct {
-	Name    string
-	Address string
-	Options map[string]interface{}
-	Timeout time.Duration
+	Name         string
+	Address      string
+	Ping         string
+	PingInterval int64
+	Options      map[string]interface{}
+	Timeout      time.Duration
+}
+
+type Counter struct {
+	Count       int64 `json:"count"`
+	Interval    int64 `json:"interval"`
+	MinInterval int64 `json:"minInterval"`
+	MaxInterval int64 `json:"maxInterval"`
+	Atime       int64 `json:"atime"`
 }
 
 type Service struct {
 	app.Service
 	SendMessage *RemoteSendMessageTask
 	Config      Config
-	client      *kk.TCPClient
+
+	client  *kk.TCPClient
+	address string
+	counter Counter
 }
 
 func (S *Service) Handle(a app.IApp, task app.ITask) error {
@@ -31,10 +44,40 @@ func (S *Service) HandleInitTask(a app.IApp, task *app.InitTask) error {
 
 	S.connect(a)
 
+	if S.Config.Ping != "" {
+
+		if S.Config.PingInterval == 0 {
+			S.Config.PingInterval = 6
+		}
+
+		var ping func() = nil
+
+		ping = func() {
+
+			var v = RemoteSendMessageTask{}
+			v.Message.Method = "PING"
+			v.Message.To = S.Config.Ping
+			v.Message.Type = "text/json"
+			v.Message.Content, _ = json.Encode(map[string]interface{}{"options": S.Config.Options, "address": S.address, "counter": &S.counter})
+
+			S.HandleRemoteSendMessageTask(a, &v)
+
+			kk.GetDispatchMain().AsyncDelay(ping, time.Duration(S.Config.PingInterval)*time.Second)
+		}
+
+		kk.GetDispatchMain().Async(ping)
+	}
+
 	return nil
 }
 
 func (S *Service) onMessage(a app.IApp, message *kk.Message) {
+
+	if message.Method == "CONNECTED" {
+		if message.Type == "text" {
+			S.address = string(message.Content)
+		}
+	}
 
 	if message.Method != "REQUEST" {
 		var v = RemoteReceiveMessageTask{}
@@ -47,7 +90,7 @@ func (S *Service) onMessage(a app.IApp, message *kk.Message) {
 	if !strings.HasPrefix(message.To, S.client.Name()) {
 		var v = RemoteSendMessageTask{}
 		v.Message = kk.Message{"NOIMPLEMENT", message.To, message.From, "text", []byte(message.To)}
-		app.Handle(a, &v)
+		S.HandleRemoteSendMessageTask(a, &v)
 		return
 	}
 
@@ -59,7 +102,7 @@ func (S *Service) onMessage(a app.IApp, message *kk.Message) {
 	if !ok {
 		var v = RemoteSendMessageTask{}
 		v.Message = kk.Message{"NOIMPLEMENT", message.To, message.From, "text", []byte(name)}
-		app.Handle(a, &v)
+		S.HandleRemoteSendMessageTask(a, &v)
 		return
 	} else if message.Type == "text/json" || message.Type == "application/json" {
 		var err = json.Decode(message.Content, tk)
@@ -67,19 +110,41 @@ func (S *Service) onMessage(a app.IApp, message *kk.Message) {
 			var b, _ = json.Encode(&app.Result{app.ERROR_UNKNOWN, "[json.Decode] [" + err.Error() + "] " + string(message.Content)})
 			var v = RemoteSendMessageTask{}
 			v.Message = kk.Message{message.Method, message.To, message.From, "text/json", b}
-			app.Handle(a, &v)
+			S.HandleRemoteSendMessageTask(a, &v)
 			return
 		}
 	}
 
+	var atime = time.Now().UnixNano()
+
 	go func() {
+
 		var err = app.Handle(a, tk)
+		var interval = time.Now().UnixNano() - atime
+
+		kk.GetDispatchMain().Async(func() {
+			S.counter.Count = S.counter.Count + 1
+			S.counter.Interval = (S.counter.Count*S.counter.Interval + interval) / S.counter.Count
+			S.counter.Atime = atime
+			if S.counter.Count == 1 {
+				S.counter.MaxInterval = interval
+				S.counter.MinInterval = interval
+			} else {
+				if interval > S.counter.MaxInterval {
+					S.counter.MaxInterval = interval
+				}
+				if interval < S.counter.MinInterval {
+					S.counter.MinInterval = interval
+				}
+			}
+		})
+
 		if err != nil && err != app.Break {
 			var b, _ = json.Encode(&app.Result{app.ERROR_UNKNOWN, err.Error()})
 			var v = RemoteSendMessageTask{}
 			v.Message = kk.Message{message.Method, message.To, message.From, "text/json", b}
 			kk.GetDispatchMain().Async(func() {
-				app.Handle(a, &v)
+				S.HandleRemoteSendMessageTask(a, &v)
 			})
 			return
 		} else {
@@ -87,7 +152,7 @@ func (S *Service) onMessage(a app.IApp, message *kk.Message) {
 			var v = RemoteSendMessageTask{}
 			v.Message = kk.Message{message.Method, message.To, message.From, "text/json", b}
 			kk.GetDispatchMain().Async(func() {
-				app.Handle(a, &v)
+				S.HandleRemoteSendMessageTask(a, &v)
 			})
 		}
 	}()

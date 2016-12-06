@@ -63,25 +63,19 @@ func (F *IniFile) Next() bool {
 
 func (F *IniFile) Decode(object interface{}) {
 
-	v := reflect.ValueOf(object)
+	var v = reflect.ValueOf(object)
 
 	for F.Next() {
-		vv := value.Get(v, F.Section)
-		switch vv.Kind() {
-		case reflect.Ptr:
-			if vv.IsNil() {
-				vv.Set(reflect.New(vv.Type().Elem()))
-			}
-			value.Set(vv, F.Key, reflect.ValueOf(F.Value))
-		case reflect.Interface, reflect.Map:
-			if vv.IsNil() {
-				vv.Set(reflect.ValueOf(map[string]interface{}{F.Key: F.Value}))
-			} else {
-				value.Set(vv, F.Key, reflect.ValueOf(F.Value))
-			}
-		default:
-			value.Set(vv, F.Key, reflect.ValueOf(F.Value))
+
+		var keys []string
+
+		if F.Section == "" {
+			keys = []string{}
+		} else {
+			keys = strings.Split(F.Section, ".")
 		}
+
+		value.SetWithKeys(v, append(keys, F.Key), reflect.ValueOf(F.Value))
 
 	}
 
@@ -99,4 +93,14 @@ func (F *IniFile) DecodeSection(object interface{}, section string) {
 
 	}
 
+}
+
+func DecodeFile(object interface{}, path string) error {
+	fd, err := Open(path)
+	if err != nil {
+		return err
+	}
+	defer fd.Close()
+	fd.Decode(object)
+	return nil
 }

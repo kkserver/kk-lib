@@ -31,7 +31,7 @@ func (c *TCPClient) Break() {
 }
 
 func (c *TCPClient) Send(message *Message, from INeuron) {
-	if c.chan_message != nil {
+	if c.isconnected && c.chan_message != nil {
 		c.chan_message <- *message
 	}
 }

@@ -126,12 +126,22 @@ func SetWithKeyIndex(object reflect.Value, keys []string, i int, value reflect.V
 				switch object.Type().Elem().Kind() {
 				case reflect.Ptr:
 					v = reflect.New(object.Type().Elem().Elem())
-				case reflect.Struct:
-					v = reflect.New(object.Type().Elem()).Elem()
-				}
-				if v.IsValid() {
 					SetWithKeyIndex(v, keys, i+1, value)
 					object.SetMapIndex(reflect.ValueOf(key), v)
+				case reflect.Struct:
+					v = reflect.New(object.Type().Elem()).Elem()
+					SetWithKeyIndex(v, keys, i+1, value)
+					object.SetMapIndex(reflect.ValueOf(key), v)
+				case reflect.String:
+					object.SetMapIndex(reflect.ValueOf(key), reflect.ValueOf(StringValue(value, "")))
+				case reflect.Int, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Int8:
+					object.SetMapIndex(reflect.ValueOf(key), reflect.ValueOf(IntValue(value, 0)))
+				case reflect.Uint, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uint8:
+					object.SetMapIndex(reflect.ValueOf(key), reflect.ValueOf(UintValue(value, 0)))
+				case reflect.Float32, reflect.Float64:
+					object.SetMapIndex(reflect.ValueOf(key), reflect.ValueOf(FloatValue(value, 0)))
+				case reflect.Interface:
+					object.SetMapIndex(reflect.ValueOf(key), value)
 				}
 			}
 
