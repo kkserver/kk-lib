@@ -62,6 +62,8 @@ func (S *Service) HandleInitTask(a app.IApp, task *app.InitTask) error {
 
 			S.HandleRemoteSendMessageTask(a, &v)
 
+			log.Println("PING")
+
 			kk.GetDispatchMain().AsyncDelay(ping, time.Duration(S.Config.PingInterval)*time.Second)
 		}
 
