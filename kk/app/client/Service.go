@@ -19,7 +19,7 @@ type Service struct {
 	RequestTask *RequestTask
 	Config      Config
 
-	request func(message *kk.Message, timeout time.Duration) *kk.Message
+	request func(message *kk.Message, trackId string, timeout time.Duration) *kk.Message
 	getName func() string
 }
 
@@ -29,7 +29,7 @@ func (S *Service) Handle(a app.IApp, task app.ITask) error {
 
 func (S *Service) HandleInitTask(a app.IApp, task *app.InitTask) error {
 
-	S.request, S.getName = kk.TCPClientRequestConnect(S.Config.Name, S.Config.Address, S.Config.Options)
+	S.request, S.getName, _ = kk.TCPClientRequestConnect(S.Config.Name, S.Config.Address, S.Config.Options)
 
 	return nil
 }
@@ -44,7 +44,7 @@ func (S *Service) HandleRequestTask(a app.IApp, task *RequestTask) error {
 		v.Type = "text/json"
 		v.Content, _ = json.Encode(task.RequestTask)
 
-		var r = S.request(&v, task.Timeout)
+		var r = S.request(&v, task.TrackId, task.Timeout)
 
 		if r == nil {
 			return errors.New("client.Service request fail")

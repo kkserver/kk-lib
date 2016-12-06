@@ -3,10 +3,12 @@ package kk
 import (
 	"bufio"
 	"encoding/gob"
-	"encoding/json"
 	"fmt"
+	"github.com/kkserver/kk-lib/kk/json"
+	"io"
 	"log"
 	"net"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -141,7 +143,7 @@ func NewTCPClient(name string, address string, options map[string]interface{}) *
 			{
 				var b []byte = nil
 				if options != nil {
-					b, _ = json.Marshal(options)
+					b, _ = json.Encode(options)
 				}
 				var m = Message{"CONNECT", name, "", "text/json", b}
 				enc.Encode(m)
@@ -240,7 +242,7 @@ func NewTCPClientConnection(conn net.Conn, id string) *TCPClient {
 									v.name = message.From
 								}
 								if message.Type == "text/json" && message.Content != nil {
-									json.Unmarshal(message.Content, &v.options)
+									json.Decode(message.Content, &v.options)
 								}
 								v.Send(&Message{"CONNECTED", v.name, v.name, "text", []byte(v.Address())}, nil)
 								log.Println("CONNECT " + v.name + " address: " + v.Address())
@@ -370,7 +372,7 @@ func TCPClientConnect(name string, address string, options map[string]interface{
 
 }
 
-func TCPClientRequestConnect(name string, address string, options map[string]interface{}) (func(message *Message, timeout time.Duration) *Message, func() string) {
+func TCPClientRequestConnect(name string, address string, options map[string]interface{}) (func(message *Message, trackId string, timeout time.Duration) *Message, func() string, func(message *Message)) {
 
 	var https = map[int64]chan Message{}
 
@@ -394,49 +396,156 @@ func TCPClientRequestConnect(name string, address string, options map[string]int
 
 	var uuid int64 = time.Now().UnixNano()
 
-	return func(message *Message, timeout time.Duration) *Message {
+	return func(message *Message, trackId string, timeout time.Duration) *Message {
 
-		var id int64 = 0
-		var ch = make(chan Message, 2048)
-		defer close(ch)
+			var id int64 = 0
+			var ch = make(chan Message, 2048)
+			defer close(ch)
 
-		GetDispatchMain().Async(func() {
+			GetDispatchMain().Async(func() {
 
-			id = uuid + 1
-			uuid = id
-			https[id] = ch
+				id = uuid + 1
+				uuid = id
+				https[id] = ch
 
-			message.From = fmt.Sprintf("%s.%d", getName(), id)
-			message.Method = "REQUEST"
+				message.From = fmt.Sprintf("%s%s.%d", getName(), trackId, id)
+				message.Method = "REQUEST"
 
-			if !sendMessage(message) {
+				if !sendMessage(message) {
+					var r = Message{"TIMEOUT", "", "", "", []byte("")}
+					ch <- r
+					delete(https, id)
+				}
+
+			})
+
+			GetDispatchMain().AsyncDelay(func() {
+
+				var ch = https[id]
+
+				if ch != nil {
+					var r = Message{"TIMEOUT", "", "", "", []byte("")}
+					ch <- r
+					delete(https, id)
+				}
+
+			}, timeout)
+
+			var m, ok = <-ch
+
+			if !ok {
 				var r = Message{"TIMEOUT", "", "", "", []byte("")}
-				ch <- r
-				delete(https, id)
+				return &r
+			} else {
+				return &m
 			}
 
-		})
+		}, getName, func(message *Message) {
 
-		GetDispatchMain().AsyncDelay(func() {
+			GetDispatchMain().Async(func() {
 
-			var ch = https[id]
+				if message.From == "" {
+					message.From = getName()
+				}
 
-			if ch != nil {
-				var r = Message{"TIMEOUT", "", "", "", []byte("")}
-				ch <- r
-				delete(https, id)
-			}
+				sendMessage(message)
 
-		}, timeout)
+			})
 
-		var m, ok = <-ch
+		}
+}
 
-		if !ok {
-			var r = Message{"TIMEOUT", "", "", "", []byte("")}
-			return &r
-		} else {
-			return &m
+func TCPClientHandleFunc(name string, address string, options map[string]interface{}, alias string, timeout time.Duration) func(w http.ResponseWriter, r *http.Request) {
+
+	request, getname, sendMessage := TCPClientRequestConnect(name, address, options)
+
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		var body = make([]byte, r.ContentLength)
+		var contentType = r.Header.Get("Content-Type")
+		var to = r.RequestURI[len(alias):]
+		var n, err = r.Body.Read(body)
+		defer r.Body.Close()
+
+		if err != nil && err != io.EOF {
+			log.Println(err)
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(err.Error()))
+			return
+		} else if int64(n) != r.ContentLength {
+			log.Printf("%d %d\n", n, r.ContentLength)
+			w.WriteHeader(http.StatusBadRequest)
+			return
 		}
 
-	}, getName
+		var trackId = ""
+
+		{
+			var ip = r.Header.Get("X-CLIENT-IP")
+
+			if ip == "" {
+				ip = r.Header.Get("X-Real-IP")
+			}
+
+			if ip == "" {
+				ip = r.RemoteAddr
+			}
+
+			var cookie, err = r.Cookie("kk")
+
+			if err != nil {
+				var v = http.Cookie{}
+				v.Name = "kk"
+				v.Value = strconv.FormatInt(time.Now().UnixNano(), 10)
+				v.Expires = time.Now().Add(24 * 3600 * time.Second)
+				v.HttpOnly = true
+				v.MaxAge = 24 * 3600
+				v.Path = "/"
+				http.SetCookie(w, &v)
+				cookie = &v
+			}
+
+			trackId = cookie.Value
+
+			var b, _ = json.Encode(map[string]string{"code": trackId, "ip": ip,
+				"User-Agent": r.Header.Get("User-Agent"),
+				"Referer":    r.Header.Get("Referer"),
+				"Path":       r.RequestURI,
+				"Host":       r.Host,
+				"Protocol":   r.Proto})
+
+			var m = Message{"MESSAGE", getname(), "kk.message.http.request", "text/json", b}
+
+			GetDispatchMain().Async(func() {
+				sendMessage(&m)
+			})
+
+		}
+
+		go func() {
+
+			var r = request(&Message{"REQUEST", "", to, contentType, body}, trackId, timeout)
+
+			if r.Method == "TIMEOUT" {
+				w.WriteHeader(http.StatusGatewayTimeout)
+			} else if r.Method == "UNAVAILABLE" {
+				w.WriteHeader(http.StatusServiceUnavailable)
+			} else if r.Method == "REQUEST" {
+				w.Header().Add("From", r.From)
+				if strings.HasPrefix(r.Type, "text") {
+					w.Header().Add("Content-Type", r.Type+"; charset=utf-8")
+				} else {
+					w.Header().Add("Content-Type", r.Type)
+				}
+				w.Header().Add("Content-Length", strconv.Itoa(len(r.Content)))
+				w.WriteHeader(http.StatusOK)
+				w.Write(r.Content)
+			} else {
+				w.WriteHeader(http.StatusUnsupportedMediaType)
+			}
+
+		}()
+
+	}
+
 }

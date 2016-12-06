@@ -8,6 +8,7 @@ import (
 type RequestTask struct {
 	app.Task
 	Name        string
+	TrackId     string
 	RequestTask app.ITask
 	Timeout     time.Duration
 }
