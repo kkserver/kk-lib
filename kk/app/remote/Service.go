@@ -127,8 +127,8 @@ func (S *Service) onMessage(a app.IApp, message *kk.Message) {
 
 		kk.GetDispatchMain().Async(func() {
 
+			S.counter.Interval = (S.counter.Count*S.counter.Interval + interval) / (S.counter.Count + 1)
 			S.counter.Count = S.counter.Count + 1
-			S.counter.Interval = (S.counter.Count*S.counter.Interval + interval) / S.counter.Count
 			S.counter.Atime = atime
 			S.counter.Duration = S.counter.Duration + interval
 			S.counter.Size = S.counter.Size + size
