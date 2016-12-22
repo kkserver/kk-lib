@@ -2,6 +2,7 @@ package app
 
 import (
 	"errors"
+	"fmt"
 	"github.com/kkserver/kk-lib/kk/inifile"
 	"github.com/kkserver/kk-lib/kk/value"
 	"reflect"
@@ -12,9 +13,21 @@ const ERROR_UNKNOWN = 0x1000
 
 var Break = errors.New("break")
 
-type Result struct {
+type Error struct {
 	Errno  int    `json:"errno,omitempty"`
 	Errmsg string `json:"errmsg,omitempty"`
+}
+
+func (E *Error) Error() string {
+	return fmt.Sprintf("[%d] %s", E.Errno, E.Errmsg)
+}
+
+func NewError(errno int, errmsg string) *Error {
+	return &Error{errno, errmsg}
+}
+
+type Result struct {
+	Error
 }
 
 type IObtain interface {

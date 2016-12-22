@@ -45,7 +45,7 @@ func NewYamlProgram(path string) (*YamlProgram, error) {
 	v := YamlProgram{}
 	v.config = config
 	v.logics = map[string]ILogic{}
-	v.logicTypes = map[string]reflect.Type{"Task": reflect.TypeOf(TaskLogic{}), "Output": reflect.TypeOf(OutputLogic{})}
+	v.logicTypes = map[string]reflect.Type{"Task": reflect.TypeOf(TaskLogic{}), "Output": reflect.TypeOf(OutputLogic{}), "Request": reflect.TypeOf(RequestLogic{}), "View": reflect.TypeOf(LuaViewLogic{})}
 	return &v, nil
 }
 
@@ -54,6 +54,16 @@ func (P *YamlProgram) Use(name string, logic ILogic) {
 }
 
 func (P *YamlProgram) newLogic(value reflect.Value) ILogic {
+
+	if value.Kind() == reflect.Ptr || value.Kind() == reflect.Interface {
+
+		if value.IsNil() {
+			return nil
+		}
+
+		value = value.Elem()
+
+	}
 
 	if value.Kind() == reflect.Map {
 
@@ -87,6 +97,7 @@ func (P *YamlProgram) newLogic(value reflect.Value) ILogic {
 							}
 
 							Value.SetValue(vv, value)
+
 						}
 
 						return true

@@ -3,6 +3,8 @@ package logic
 import (
 	"fmt"
 	"github.com/aarzilli/golua/lua"
+	"github.com/kkserver/kk-lib/kk/app"
+	Value "github.com/kkserver/kk-lib/kk/value"
 	"reflect"
 	"strings"
 )
@@ -20,6 +22,24 @@ func NewLuaContext() *LuaContext {
 
 	v := LuaContext{}
 	v.L = L
+
+	L.PushGoFunction(func(L *lua.State) int {
+
+		keys := []string{}
+		top := L.GetTop()
+
+		for i := 0; i < top; i++ {
+			keys = append(keys, L.ToString(-top+i))
+		}
+
+		vv := v.Get(keys)
+
+		L.PushGoStruct(vv)
+
+		return 1
+	})
+
+	L.SetGlobal("get")
 
 	return &v
 }
@@ -75,7 +95,55 @@ func (C *LuaContext) ReflectValue(value interface{}) interface{} {
 
 func (L *LuaContext) Close() {
 	if L.L != nil {
+		L.L.PushNil()
+		L.L.SetGlobal("get")
 		L.L.Close()
 		L.L = nil
 	}
+}
+
+type LuaViewLogic struct {
+	ViewLogic
+}
+
+func (L *LuaViewLogic) Exec(a app.IApp, program IProgram, ctx IContext) error {
+	return L.ExecCode(a, program, ctx, func(code string) string {
+
+		var C *LuaContext = ctx.(*LuaContext)
+
+		var vv interface{} = nil
+
+		if C.L.LoadString(fmt.Sprintf("return %s", code)) == 0 {
+
+			err := C.L.Call(0, 1)
+
+			if err != nil {
+				vv = err.Error()
+			} else {
+
+				if C.L.IsFunction(-1) {
+
+					err = C.L.Call(0, 1)
+
+					if err != nil {
+						vv = err.Error()
+					} else {
+						vv = C.L.ToGoStruct(-1)
+						C.L.Pop(1)
+					}
+
+				} else {
+					vv = C.L.ToGoStruct(-1)
+					C.L.Pop(1)
+				}
+
+			}
+
+		} else {
+			vv = C.L.ToString(-1)
+			C.L.Pop(1)
+		}
+
+		return Value.StringValue(reflect.ValueOf(vv), "")
+	})
 }

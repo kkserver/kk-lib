@@ -42,14 +42,31 @@ func (S *Service) HandleRequestTask(a app.IApp, task *RequestTask) error {
 
 		v.To = task.Name
 		v.Type = "text/json"
-		v.Content, _ = json.Encode(task.RequestTask)
+
+		if task.RequestTask != nil {
+			v.Content, _ = json.Encode(task.RequestTask)
+		} else {
+			v.Content, _ = json.Encode(task.Request)
+		}
 
 		var r = S.request(&v, task.TrackId, task.Timeout)
 
 		if r == nil {
 			return errors.New("client.Service request fail")
-		} else if r.Method == "REQUEST" && (r.Type == "text/json" || r.Type == "application/json") {
-			return json.Decode(r.Content, task.RequestTask.GetResult())
+		} else if r.Method == "REQUEST" {
+			if task.RequestTask != nil {
+				if r.Type == "text/json" || r.Type == "application/json" {
+					return json.Decode(r.Content, task.RequestTask.GetResult())
+				} else {
+					return errors.New("client.Service request fail " + r.String())
+				}
+			} else {
+				if r.Type == "text/json" || r.Type == "application/json" {
+					return json.Decode(r.Content, &task.Result)
+				} else if r.Type == "text" {
+					task.Result = string(r.Content)
+				}
+			}
 		} else {
 			return errors.New("client.Service request fail " + r.String())
 		}

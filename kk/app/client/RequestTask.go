@@ -10,5 +10,7 @@ type RequestTask struct {
 	Name        string
 	TrackId     string
 	RequestTask app.ITask
+	Request     interface{}
+	Result      interface{}
 	Timeout     time.Duration
 }

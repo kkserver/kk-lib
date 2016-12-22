@@ -161,7 +161,12 @@ func IntValue(value reflect.Value, defaultValue int64) int64 {
 
 	var v = value
 
-	if v.Kind() == reflect.Ptr {
+	if v.Kind() == reflect.Ptr || v.Kind() == reflect.Interface {
+
+		if v.IsNil() {
+			return defaultValue
+		}
+
 		v = v.Elem()
 	}
 
@@ -202,7 +207,12 @@ func UintValue(value reflect.Value, defaultValue uint64) uint64 {
 
 	var v = value
 
-	if v.Kind() == reflect.Ptr {
+	if v.Kind() == reflect.Ptr || v.Kind() == reflect.Interface {
+
+		if v.IsNil() {
+			return defaultValue
+		}
+
 		v = v.Elem()
 	}
 
@@ -243,7 +253,12 @@ func FloatValue(value reflect.Value, defaultValue float64) float64 {
 
 	var v = value
 
-	if v.Kind() == reflect.Ptr {
+	if v.Kind() == reflect.Ptr || v.Kind() == reflect.Interface {
+
+		if v.IsNil() {
+			return defaultValue
+		}
+
 		v = v.Elem()
 	}
 
@@ -274,7 +289,12 @@ func BooleanValue(value reflect.Value, defaultValue bool) bool {
 
 	var v = value
 
-	if v.Kind() == reflect.Ptr {
+	if v.Kind() == reflect.Ptr || v.Kind() == reflect.Interface {
+
+		if v.IsNil() {
+			return defaultValue
+		}
+
 		v = v.Elem()
 	}
 
@@ -313,7 +333,12 @@ func StringValue(value reflect.Value, defaultValue string) string {
 
 	var v = value
 
-	if v.Kind() == reflect.Ptr {
+	if v.Kind() == reflect.Ptr || v.Kind() == reflect.Interface {
+
+		if v.IsNil() {
+			return defaultValue
+		}
+
 		v = v.Elem()
 	}
 
@@ -339,13 +364,6 @@ func StringValue(value reflect.Value, defaultValue string) string {
 		}
 	case reflect.String:
 		return v.String()
-	case reflect.Interface:
-		if !v.IsNil() {
-			vv, ok := v.Interface().(string)
-			if ok {
-				return vv
-			}
-		}
 	}
 
 	return defaultValue

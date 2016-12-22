@@ -1,21 +1,29 @@
 package logic
 
 import (
-	"errors"
+	"bufio"
+	"bytes"
 	"github.com/kkserver/kk-lib/kk/app"
+	"github.com/kkserver/kk-lib/kk/app/client"
 	Value "github.com/kkserver/kk-lib/kk/value"
+	"io"
+	"log"
+	"os"
 	"reflect"
+	"regexp"
 	"strings"
+	"time"
 )
 
 const ERROR_UNKNOWN = 0xff00
 
-var ErrnoKeys = []string{"errno"}
-var ErrmsgKeys = []string{"errmsg"}
+var ErrnoKeys = []string{"output", "errno"}
+var ErrmsgKeys = []string{"output", "errmsg"}
 var ResultKeys = []string{"result"}
 var ObjectKeys = []string{"object"}
 var InputKeys = []string{"input"}
 var OutputKeys = []string{"output"}
+var ViewKeys = []string{"view"}
 
 type ILogic interface {
 	Exec(a app.IApp, program IProgram, ctx IContext) error
@@ -49,7 +57,7 @@ func Exec(a app.IApp, program IProgram, ctx IContext) error {
 	v := program.GetLogic("In")
 
 	if v == nil {
-		return errors.New("Not Found In Logic")
+		return app.NewError(ERROR_UNKNOWN, "Not Found In Logic")
 	}
 
 	return v.Exec(a, program, ctx)
@@ -83,7 +91,7 @@ func (C *Context) Get(keys []string) interface{} {
 		for idx >= 0 {
 			vs := C.values[idx]
 			v := Value.GetWithKeys(reflect.ValueOf(vs), keys)
-			if v.CanInterface() && !v.IsNil() {
+			if v.IsValid() && v.CanInterface() && !v.IsNil() {
 				return v.Interface()
 			}
 			idx = idx - 1
@@ -158,7 +166,7 @@ func (L *TaskLogic) Exec(a app.IApp, program IProgram, ctx IContext) error {
 					ctx.Set(ErrmsgKeys, errmsg)
 					return L.Fail.Exec(a, program, ctx)
 				} else {
-					return errors.New(errmsg)
+					return app.NewError(ERROR_UNKNOWN, errmsg)
 				}
 
 			} else {
@@ -179,13 +187,74 @@ func (L *TaskLogic) Exec(a app.IApp, program IProgram, ctx IContext) error {
 		ctx.Set(ErrmsgKeys, "Not Found Task "+L.Name)
 		return L.Fail.Exec(a, program, ctx)
 	} else {
-		return errors.New("Not Found Task " + L.Name)
+		return app.NewError(ERROR_UNKNOWN, "Not Found Task "+L.Name)
 	}
+}
+
+type RequestLogic struct {
+	Name    string
+	Options map[string]interface{}
+	Timeout int64
+	Fail    ILogic
+	Done    ILogic
+}
+
+func (L *RequestLogic) Exec(a app.IApp, program IProgram, ctx IContext) error {
+
+	task := client.RequestTask{}
+
+	task.Name = L.Name
+	task.Request = L.Options
+	if L.Timeout == 0 {
+		task.Timeout = 1 * time.Second
+	} else {
+		task.Timeout = time.Duration(L.Timeout) * time.Second
+	}
+
+	err := app.Handle(a, &task)
+
+	if err != nil {
+		if L.Fail != nil {
+			ctx.Set(ErrnoKeys, ERROR_UNKNOWN)
+			ctx.Set(ErrmsgKeys, err)
+			return L.Fail.Exec(a, program, ctx)
+		} else {
+			return err
+		}
+	} else {
+
+		rs := task.Result
+		rsv := reflect.ValueOf(rs)
+		errno := Value.IntValue(Value.GetWithKeys(rsv, []string{"errno"}), 0)
+		errmsg := Value.StringValue(Value.GetWithKeys(rsv, []string{"errmsg"}), "")
+
+		if errno != 0 {
+
+			if L.Fail != nil {
+				ctx.Set(ErrnoKeys, errno)
+				ctx.Set(ErrmsgKeys, errmsg)
+				return L.Fail.Exec(a, program, ctx)
+			} else {
+				return app.NewError(ERROR_UNKNOWN, errmsg)
+			}
+
+		} else {
+
+			ctx.Set(ResultKeys, rs)
+
+			if L.Done != nil {
+				return L.Done.Exec(a, program, ctx)
+			}
+
+			return nil
+		}
+
+	}
+
 }
 
 type OutputField struct {
 	Name  string
-	Keys  string
 	Value interface{}
 	Done  ILogic
 }
@@ -224,10 +293,13 @@ func toObject(a app.IApp, program IProgram, ctx IContext, value reflect.Value, o
 			ctx.End()
 
 		} else if fd.Value != nil {
+			ctx.Begin()
+			ctx.Set(ObjectKeys, value)
 			object[fd.Name] = ctx.ReflectValue(fd.Value)
-		} else if fd.Keys != "" {
-			v := Value.GetWithKeys(value, strings.Split(fd.Keys, "."))
-			if v.CanInterface() && !v.IsNil() {
+			ctx.End()
+		} else {
+			v := Value.GetWithKeys(value, strings.Split(fd.Name, "."))
+			if v.IsValid && v.CanInterface() && !v.IsNil() {
 				object[fd.Name] = v.Interface()
 			}
 		}
@@ -288,6 +360,125 @@ func (L *OutputLogic) Exec(a app.IApp, program IProgram, ctx IContext) error {
 	if L.Done != nil {
 		return L.Done.Exec(a, program, ctx)
 	}
+
+	return nil
+}
+
+type View struct {
+	Content     []byte
+	ContentType string
+}
+
+type ViewLogic struct {
+	Path        string
+	ContentType string
+	Fail        ILogic
+
+	content    string
+	hasContent bool
+}
+
+var viewLogicCodeRegexp, _ = regexp.Compile("\\{\\#.*?\\#\\}")
+var viewLogicIncludeRegexp, _ = regexp.Compile("\\<\\!\\-\\-\\ include\\(.*?\\)\\ \\-\\-\\>")
+
+func (L *ViewLogic) Exec(a app.IApp, program IProgram, ctx IContext) error {
+	return L.ExecCode(a, program, ctx, func(code string) string {
+		return Value.StringValue(reflect.ValueOf(ctx.Get(strings.Split(code, "."))), "")
+	})
+}
+
+func GetFileContent(path string) (string, error) {
+
+	fd, err := os.Open(path)
+
+	if err != nil {
+		return "", err
+	}
+
+	rd := bufio.NewReader(fd)
+
+	v, err := rd.ReadString(0)
+
+	fd.Close()
+
+	if err != nil && err != io.EOF {
+		return "", err
+	}
+
+	data := bytes.NewBuffer(nil)
+	i := 0
+
+	for i < len(v) {
+
+		vs := viewLogicIncludeRegexp.FindStringIndex(v[i:])
+
+		if vs != nil {
+
+			log.Println(vs)
+
+			if vs[0] > 0 {
+				data.WriteString(v[i : i+vs[0]])
+			}
+
+			vv, err := GetFileContent(v[i+vs[0]+13 : i+vs[1]-5])
+
+			if err != nil {
+				return "", err
+			} else {
+				data.WriteString(vv)
+			}
+
+			i = i + vs[1]
+
+		} else {
+			data.WriteString(v[i:])
+			break
+		}
+	}
+
+	return data.String(), nil
+}
+
+func (L *ViewLogic) ExecCode(a app.IApp, program IProgram, ctx IContext, code func(code string) string) error {
+
+	if !L.hasContent {
+
+		v, err := GetFileContent(L.Path)
+
+		if err != nil {
+			L.content = err.Error()
+		} else {
+			L.content = v
+		}
+
+		L.hasContent = true
+	}
+
+	data := bytes.NewBuffer(nil)
+
+	i := 0
+
+	for i < len(L.content) {
+
+		vs := viewLogicCodeRegexp.FindStringIndex(L.content[i:])
+
+		if vs != nil {
+
+			if vs[0] > 0 {
+				data.WriteString(L.content[i : i+vs[0]])
+			}
+
+			data.WriteString(code(L.content[i+vs[0]+2 : i+vs[1]-2]))
+
+			i = i + vs[1]
+
+		} else {
+			data.WriteString(L.content[i:])
+			break
+		}
+	}
+
+	ctx.Set(ViewKeys, &View{data.Bytes(), L.ContentType})
 
 	return nil
 }
