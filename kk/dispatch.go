@@ -34,6 +34,8 @@ func NewDispatch() *Dispatch {
 			v.OnExit()
 		}
 
+		v.ch = nil
+
 	}()
 
 	return &v
@@ -46,10 +48,9 @@ func (d *Dispatch) Break() {
 }
 
 func (d *Dispatch) Async(fn func()) {
-	var ch = d.ch
-	go func() {
-		ch <- fn
-	}()
+	if d.ch != nil {
+		d.ch <- fn
+	}
 }
 
 func (d *Dispatch) AsyncDelay(fn func(), delay time.Duration) {
