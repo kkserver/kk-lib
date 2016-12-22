@@ -227,9 +227,9 @@ func (L *RequestLogic) Exec(a app.IApp, program IProgram, ctx IContext) error {
 		for key, value := range L.Options {
 			vv := ctx.ReflectValue(value)
 			if key == "_" {
-				Value.EachObject(reflect.ValueOf(vv), func(key reflect.Value, value reflect.Value) bool {
-					if value.IsValid() && value.CanInterface() && !value.IsNil() {
-						v[key] = value.Interface()
+				Value.EachObject(reflect.ValueOf(vv), func(key reflect.Value, vv reflect.Value) bool {
+					if vv.IsValid() && vv.CanInterface() && !vv.IsNil() {
+						v[Value.StringValue(key, "")] = vv.Interface()
 					}
 					return true
 				})
