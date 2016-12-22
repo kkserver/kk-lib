@@ -7,7 +7,6 @@ import (
 	"github.com/kkserver/kk-lib/kk/app/client"
 	Value "github.com/kkserver/kk-lib/kk/value"
 	"io"
-	"log"
 	"os"
 	"reflect"
 	"regexp"
@@ -407,8 +406,6 @@ func GetFileContent(path string) (string, error) {
 		vs := viewLogicIncludeRegexp.FindStringIndex(v[i:])
 
 		if vs != nil {
-
-			log.Println(vs)
 
 			if vs[0] > 0 {
 				data.WriteString(v[i : i+vs[0]])

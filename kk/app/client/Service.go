@@ -16,11 +16,11 @@ type Config struct {
 
 type Service struct {
 	app.Service
-	RequestTask *RequestTask
-	Config      Config
+	Config Config
 
-	request func(message *kk.Message, trackId string, timeout time.Duration) *kk.Message
-	getName func() string
+	request     func(message *kk.Message, trackId string, timeout time.Duration) *kk.Message
+	getName     func() string
+	sendMessage func(message *kk.Message)
 }
 
 func (S *Service) Handle(a app.IApp, task app.ITask) error {
@@ -29,7 +29,7 @@ func (S *Service) Handle(a app.IApp, task app.ITask) error {
 
 func (S *Service) HandleInitTask(a app.IApp, task *app.InitTask) error {
 
-	S.request, S.getName, _ = kk.TCPClientRequestConnect(S.Config.Name, S.Config.Address, S.Config.Options)
+	S.request, S.getName, S.sendMessage = kk.TCPClientRequestConnect(S.Config.Name, S.Config.Address, S.Config.Options)
 
 	return nil
 }
@@ -73,6 +73,20 @@ func (S *Service) HandleRequestTask(a app.IApp, task *RequestTask) error {
 
 	} else {
 		return errors.New("client.Service not connected")
+	}
+
+	return nil
+}
+
+func (S *Service) HandleClientSendMessageTask(a app.IApp, task *ClientSendMessageTask) error {
+
+	if S.sendMessage != nil {
+
+		if task.Message.From == "" {
+			task.Message.From = S.getName()
+		}
+
+		S.sendMessage(&task.Message)
 	}
 
 	return nil
