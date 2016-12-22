@@ -293,7 +293,7 @@ func toObject(a app.IApp, program IProgram, ctx IContext, value reflect.Value, o
 			ctx.End()
 		} else {
 			v := Value.GetWithKeys(value, strings.Split(fd.Name, "."))
-			if v.IsValid && v.CanInterface() && !v.IsNil() {
+			if v.IsValid() && v.CanInterface() && !v.IsNil() {
 				object[fd.Name] = v.Interface()
 			}
 		}
