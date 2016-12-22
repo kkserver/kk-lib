@@ -335,6 +335,7 @@ func toObject(a app.IApp, program IProgram, ctx IContext, value reflect.Value, o
 func (L *OutputLogic) Exec(a app.IApp, program IProgram, ctx IContext) error {
 
 	vv := ctx.ReflectValue(L.Value)
+
 	output := ctx.Get(OutputKeys)
 
 	if output == nil {

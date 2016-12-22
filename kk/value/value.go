@@ -13,15 +13,22 @@ type IGetter interface {
 
 func Get(object reflect.Value, key string) reflect.Value {
 
-	switch object.Kind() {
-	case reflect.Ptr:
-		if !object.IsNil() {
-			v, ok := object.Interface().(IGetter)
-			if ok {
-				return v.GetValue(key)
-			}
-			return Get(object.Elem(), key)
+	if object.Kind() == reflect.Ptr || object.Kind() == reflect.Interface {
+
+		if object.IsNil() {
+			return reflect.ValueOf(nil)
 		}
+
+		v, ok := object.Interface().(IGetter)
+
+		if ok {
+			return v.GetValue(key)
+		}
+
+		object = object.Elem()
+	}
+
+	switch object.Kind() {
 	case reflect.Map:
 		return object.MapIndex(reflect.ValueOf(key))
 	case reflect.Struct:
@@ -32,13 +39,6 @@ func Get(object reflect.Value, key string) reflect.Value {
 			}
 		}
 		return object.FieldByName(key)
-	case reflect.Interface:
-		if !object.IsNil() {
-			v, ok := object.Interface().(IGetter)
-			if ok {
-				return v.GetValue(key)
-			}
-		}
 	}
 
 	return reflect.ValueOf(nil)
@@ -411,10 +411,15 @@ func SetValue(object reflect.Value, value reflect.Value) {
 		if v.IsNil() {
 			v.Set(reflect.MakeMap(v.Type()))
 		}
-		EachObject(object, func(key reflect.Value, value reflect.Value) bool {
-			v.SetMapIndex(key, value)
-			return true
-		})
+		if v.Type().Key().Kind() == reflect.String && v.Type().Elem().Kind() == reflect.Interface {
+			EachObject(value, func(key reflect.Value, vv reflect.Value) bool {
+				if vv.IsValid() && vv.CanInterface() && !vv.IsNil() {
+					v.SetMapIndex(reflect.ValueOf(StringValue(key, "")), reflect.ValueOf(vv.Interface()))
+				}
+				return true
+			})
+		}
+
 	case reflect.Slice:
 
 		if v.IsNil() {
