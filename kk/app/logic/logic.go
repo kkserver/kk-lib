@@ -136,7 +136,15 @@ func (L *TaskLogic) Exec(a app.IApp, program IProgram, ctx IContext) error {
 
 			for key, value := range L.Options {
 				vv := ctx.ReflectValue(value)
-				Value.SetWithKeys(v, []string{key}, reflect.ValueOf(vv))
+				if key == "_" {
+					Value.EachObject(reflect.ValueOf(vv), func(key reflect.Value, value reflect.Value) bool {
+						Value.SetWithKeys(v, []string{Value.StringValue(key, "")}, value)
+						return true
+					})
+				} else {
+					Value.SetWithKeys(v, []string{key}, reflect.ValueOf(vv))
+				}
+
 			}
 
 		}
@@ -203,11 +211,34 @@ func (L *RequestLogic) Exec(a app.IApp, program IProgram, ctx IContext) error {
 	task := client.RequestTask{}
 
 	task.Name = L.Name
-	task.Request = L.Options
+
 	if L.Timeout == 0 {
 		task.Timeout = 1 * time.Second
 	} else {
 		task.Timeout = time.Duration(L.Timeout) * time.Second
+	}
+
+	v := map[string]interface{}{}
+
+	task.Request = v
+
+	if L.Options != nil {
+
+		for key, value := range L.Options {
+			vv := ctx.ReflectValue(value)
+			if key == "_" {
+				Value.EachObject(reflect.ValueOf(vv), func(key reflect.Value, value reflect.Value) bool {
+					if value.IsValid() && value.CanInterface() && !value.IsNil() {
+						v[key] = value.Interface()
+					}
+					return true
+				})
+			} else {
+				v[key] = vv
+			}
+
+		}
+
 	}
 
 	err := app.Handle(a, &task)

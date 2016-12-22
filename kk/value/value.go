@@ -407,6 +407,14 @@ func SetValue(object reflect.Value, value reflect.Value) {
 		v.SetUint(UintValue(value, 0))
 	case reflect.String:
 		v.SetString(StringValue(value, ""))
+	case reflect.Map:
+		if v.IsNil() {
+			v.Set(reflect.MakeMap(v.Type()))
+		}
+		EachObject(object, func(key reflect.Value, value reflect.Value) bool {
+			v.SetMapIndex(key, value)
+			return true
+		})
 	case reflect.Slice:
 
 		if v.IsNil() {
@@ -432,7 +440,12 @@ func EachObject(object reflect.Value, fn func(key reflect.Value, value reflect.V
 
 	var v = object
 
-	if v.Kind() == reflect.Ptr {
+	if v.Kind() == reflect.Ptr || v.Kind() == reflect.Interface {
+
+		if v.IsNil() {
+			return
+		}
+
 		v = v.Elem()
 	}
 
