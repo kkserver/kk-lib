@@ -274,13 +274,7 @@ func toObject(a app.IApp, program IProgram, ctx IContext, value reflect.Value, o
 
 			ctx.Begin()
 			ctx.Set(OutputKeys, map[string]interface{}{})
-
-			if fd.Keys != "" {
-				v := Value.GetWithKeys(value, strings.Split(fd.Keys, "."))
-				if v.CanInterface() && !v.IsNil() {
-					ctx.Set(ObjectKeys, v.Interface())
-				}
-			}
+			ctx.Set(ObjectKeys, value)
 
 			err := fd.Done.Exec(a, program, ctx)
 
