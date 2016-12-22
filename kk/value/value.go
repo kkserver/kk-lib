@@ -339,6 +339,13 @@ func StringValue(value reflect.Value, defaultValue string) string {
 		}
 	case reflect.String:
 		return v.String()
+	case reflect.Interface:
+		if !v.IsNil() {
+			vv, ok := v.Interface().(string)
+			if ok {
+				return vv
+			}
+		}
 	}
 
 	return defaultValue
@@ -399,6 +406,37 @@ func SetValue(object reflect.Value, value reflect.Value) {
 			v.Set(reflect.Append(v, reflect.ValueOf(UintValue(value, 0))))
 		case reflect.Float32, reflect.Float64:
 			v.Set(reflect.Append(v, reflect.ValueOf(FloatValue(value, 0))))
+		}
+	}
+}
+
+func EachObject(object reflect.Value, fn func(key reflect.Value, value reflect.Value) bool) {
+
+	var v = object
+
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
+
+	switch v.Kind() {
+	case reflect.Map:
+		for _, key := range v.MapKeys() {
+			if fn(key, v.MapIndex(key)) == false {
+				break
+			}
+		}
+	case reflect.Slice, reflect.Array:
+		for i := 0; i < v.Len(); i++ {
+			if fn(reflect.ValueOf(i), v.Index(i)) == false {
+				break
+			}
+		}
+	case reflect.Struct:
+		t := v.Type()
+		for i := 0; i < v.NumField(); i++ {
+			if fn(reflect.ValueOf(t.Field(i).Name), v.Field(i)) == false {
+				break
+			}
 		}
 	}
 }
