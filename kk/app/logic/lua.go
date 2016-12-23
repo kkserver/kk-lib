@@ -53,7 +53,7 @@ func NewLuaContext() *LuaContext {
 
 		vv := v.Get(keys)
 
-		b, _ = json.Encode(vv)
+		b, _ := json.Encode(vv)
 
 		L.PushString(string(b))
 
