@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/aarzilli/golua/lua"
 	"github.com/kkserver/kk-lib/kk/app"
+	"github.com/kkserver/kk-lib/kk/json"
 	Value "github.com/kkserver/kk-lib/kk/value"
 	"reflect"
 	"strings"
@@ -40,6 +41,26 @@ func NewLuaContext() *LuaContext {
 	})
 
 	L.SetGlobal("get")
+
+	L.PushGoFunction(func(L *lua.State) int {
+
+		keys := []string{}
+		top := L.GetTop()
+
+		for i := 0; i < top; i++ {
+			keys = append(keys, L.ToString(-top+i))
+		}
+
+		vv := v.Get(keys)
+
+		b, _ = json.Encode(vv)
+
+		L.PushString(string(b))
+
+		return 1
+	})
+
+	L.SetGlobal("json")
 
 	return &v
 }
