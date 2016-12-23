@@ -7,6 +7,7 @@ import (
 	"github.com/kkserver/kk-lib/kk/app/client"
 	Value "github.com/kkserver/kk-lib/kk/value"
 	"io"
+	"log"
 	"os"
 	"reflect"
 	"regexp"
@@ -254,6 +255,8 @@ func (L *RequestLogic) Exec(a app.IApp, program IProgram, ctx IContext) error {
 	} else {
 
 		rs := task.Result
+		log.Println(rs)
+
 		rsv := reflect.ValueOf(rs)
 		errno := Value.IntValue(Value.GetWithKeys(rsv, []string{"errno"}), 0)
 		errmsg := Value.StringValue(Value.GetWithKeys(rsv, []string{"errmsg"}), "")

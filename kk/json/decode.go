@@ -126,7 +126,7 @@ func decodeArray(dec *json.Decoder, value reflect.Value) error {
 	var err error = nil
 	var v = value
 
-	if v.Kind() == reflect.Interface {
+	if v.Kind() == reflect.Ptr {
 		v = v.Elem()
 	}
 
@@ -139,6 +139,7 @@ func decodeArray(dec *json.Decoder, value reflect.Value) error {
 		vv = reflect.New(v.Type()).Elem()
 	case reflect.Interface:
 		vv = reflect.ValueOf([]interface{}{})
+		valueType = vv.Type().Elem()
 	}
 
 	fn := func() error {
