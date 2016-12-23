@@ -45,7 +45,7 @@ func NewYamlProgram(path string) (*YamlProgram, error) {
 	v := YamlProgram{}
 	v.config = config
 	v.logics = map[string]ILogic{}
-	v.logicTypes = map[string]reflect.Type{"Task": reflect.TypeOf(TaskLogic{}), "Output": reflect.TypeOf(OutputLogic{}), "Request": reflect.TypeOf(RequestLogic{}), "View": reflect.TypeOf(LuaViewLogic{})}
+	v.logicTypes = map[string]reflect.Type{"Task": reflect.TypeOf(TaskLogic{}), "Output": reflect.TypeOf(OutputLogic{}), "Var": reflect.TypeOf(VarLogic{}), "Request": reflect.TypeOf(RequestLogic{}), "View": reflect.TypeOf(LuaViewLogic{})}
 	return &v, nil
 }
 

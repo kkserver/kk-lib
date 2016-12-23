@@ -389,6 +389,27 @@ func (L *OutputLogic) Exec(a app.IApp, program IProgram, ctx IContext) error {
 	return nil
 }
 
+type VarLogic struct {
+	Keys  string
+	Value interface{}
+	Done  ILogic
+}
+
+func (L *VarLogic) Exec(a app.IApp, program IProgram, ctx IContext) error {
+
+	vv := ctx.ReflectValue(L.Value)
+
+	keys := strings.Split(L.Keys, ".")
+
+	ctx.Set(keys, vv)
+
+	if L.Done != nil {
+		return L.Done.Exec(a, program, ctx)
+	}
+
+	return nil
+}
+
 type View struct {
 	Content     []byte
 	ContentType string
