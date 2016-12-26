@@ -109,7 +109,7 @@ func (S *Service) onMessage(a app.IApp, message *kk.Message) {
 	} else if message.Type == "text/json" || message.Type == "application/json" {
 		var err = json.Decode(message.Content, tk)
 		if err != nil {
-			var b, _ = json.Encode(&app.Result{app.ERROR_UNKNOWN, "[json.Decode] [" + err.Error() + "] " + string(message.Content)})
+			var b, _ = json.Encode(app.NewError(app.ERROR_UNKNOWN, "[json.Decode] ["+err.Error()+"] "+string(message.Content)))
 			var v = RemoteSendMessageTask{}
 			v.Message = kk.Message{message.Method, message.To, message.From, "text/json", b}
 			S.HandleRemoteSendMessageTask(a, &v)
@@ -147,7 +147,7 @@ func (S *Service) onMessage(a app.IApp, message *kk.Message) {
 		})
 
 		if err != nil && err != app.Break {
-			var b, _ = json.Encode(&app.Result{app.ERROR_UNKNOWN, err.Error()})
+			var b, _ = json.Encode(app.NewError(app.ERROR_UNKNOWN, err.Error()))
 			var v = RemoteSendMessageTask{}
 			v.Message = kk.Message{message.Method, message.To, message.From, "text/json", b}
 			kk.GetDispatchMain().Async(func() {
