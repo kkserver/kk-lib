@@ -53,6 +53,78 @@ func NewLuaContext() *LuaContext {
 
 		vv := v.Get(keys)
 
+		L.PushString(Value.StringValue(reflect.ValueOf(vv), ""))
+
+		return 1
+	})
+
+	L.SetGlobal("getString")
+
+	L.PushGoFunction(func(L *lua.State) int {
+
+		keys := []string{}
+		top := L.GetTop()
+
+		for i := 0; i < top; i++ {
+			keys = append(keys, L.ToString(-top+i))
+		}
+
+		vv := v.Get(keys)
+
+		L.PushInteger(Value.IntValue(reflect.ValueOf(vv), 0))
+
+		return 1
+	})
+
+	L.SetGlobal("getInteger")
+
+	L.PushGoFunction(func(L *lua.State) int {
+
+		keys := []string{}
+		top := L.GetTop()
+
+		for i := 0; i < top; i++ {
+			keys = append(keys, L.ToString(-top+i))
+		}
+
+		vv := v.Get(keys)
+
+		L.PushNumber(Value.FloatValue(reflect.ValueOf(vv), 0))
+
+		return 1
+	})
+
+	L.SetGlobal("getNumber")
+
+	L.PushGoFunction(func(L *lua.State) int {
+
+		keys := []string{}
+		top := L.GetTop()
+
+		for i := 0; i < top; i++ {
+			keys = append(keys, L.ToString(-top+i))
+		}
+
+		vv := v.Get(keys)
+
+		L.PushBoolean(Value.BooleanValue(reflect.ValueOf(vv), false))
+
+		return 1
+	})
+
+	L.SetGlobal("getBoolean")
+
+	L.PushGoFunction(func(L *lua.State) int {
+
+		keys := []string{}
+		top := L.GetTop()
+
+		for i := 0; i < top; i++ {
+			keys = append(keys, L.ToString(-top+i))
+		}
+
+		vv := v.Get(keys)
+
 		b, _ := json.Encode(vv)
 
 		L.PushString(string(b))
