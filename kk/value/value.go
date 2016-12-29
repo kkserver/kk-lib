@@ -67,7 +67,7 @@ func SetWithKeyIndex(object reflect.Value, keys []string, i int, value reflect.V
 
 		v := Get(object, key)
 
-		if v.IsValid() {
+		if v.IsValid() && (i+1 != len(keys) || object.Kind() != reflect.Map) {
 
 			switch v.Kind() {
 			case reflect.Map:
