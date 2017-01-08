@@ -61,13 +61,34 @@ func Set(object reflect.Value, key string, value reflect.Value) {
 
 func SetWithKeyIndex(object reflect.Value, keys []string, i int, value reflect.Value) {
 
-	if i < len(keys) {
+	if i+1 == len(keys) {
+
+		key := keys[i]
+
+		switch object.Kind() {
+		case reflect.Ptr:
+			if object.IsNil() {
+				object.Set(reflect.New(object.Type().Elem()))
+			}
+			SetWithKeyIndex(object.Elem(), keys, i, value)
+		case reflect.Struct:
+			v := object.FieldByName(key)
+			if v.IsValid() {
+				SetWithKeyIndex(v, keys, i+1, value)
+			}
+		case reflect.Map:
+			v := reflect.New(object.Type().Elem())
+			SetValue(v, value)
+			object.SetMapIndex(reflect.ValueOf(key), v.Elem())
+		}
+
+	} else if i < len(keys) {
 
 		key := keys[i]
 
 		v := Get(object, key)
 
-		if v.IsValid() && (i+1 != len(keys) || object.Kind() != reflect.Map) {
+		if v.IsValid() {
 
 			switch v.Kind() {
 			case reflect.Map:
@@ -385,6 +406,9 @@ func SetValue(object reflect.Value, value reflect.Value) {
 	}
 
 	if v.Kind() == reflect.Ptr {
+		if v.IsNil() {
+			v.Set(reflect.New(v.Type().Elem()))
+		}
 		v = v.Elem()
 	}
 
