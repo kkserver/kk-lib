@@ -392,6 +392,10 @@ func StringValue(value reflect.Value, defaultValue string) string {
 
 func SetValue(object reflect.Value, value reflect.Value) {
 
+	if value.Kind() == reflect.Invalid {
+		return
+	}
+
 	var v = object
 
 	if v.Kind() == reflect.Func {
