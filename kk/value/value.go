@@ -393,9 +393,11 @@ func StringValue(value reflect.Value, defaultValue string) string {
 func SetValue(object reflect.Value, value reflect.Value) {
 
 	if value.Kind() == reflect.Invalid {
-		switch object.Kind() {
-		case reflect.Ptr:
-			object.Set(value)
+		if object.CanSet() {
+			switch object.Kind() {
+			case reflect.Ptr:
+				object.Set(value)
+			}
 		}
 		return
 	}
