@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	Value "github.com/kkserver/kk-lib/kk/value"
+	"github.com/kkserver/kk-lib/kk/dynamic"
 	"log"
 	"reflect"
 	"strings"
@@ -24,36 +24,29 @@ type DBField struct {
 	Type   int
 }
 
-func (fd *DBField) GetValue(key string) reflect.Value {
+func (fd *DBField) SetValue(key string, value interface{}) {
 	if key == "Length" {
-		return reflect.ValueOf(&fd.Length)
+		fd.Length = int(dynamic.IntValue(value, 0))
 	} else if key == "Type" {
-		return reflect.ValueOf(func(value reflect.Value) {
-			if value.Kind() == reflect.String {
-				switch value.String() {
-				case "string":
-					fd.Type = DBFieldTypeString
-				case "int":
-					fd.Type = DBFieldTypeInt
-				case "int64":
-					fd.Type = DBFieldTypeInt64
-				case "double":
-					fd.Type = DBFieldTypeDouble
-				case "boolean":
-					fd.Type = DBFieldTypeBoolean
-				case "text":
-					fd.Type = DBFieldTypeText
-				case "longtext":
-					fd.Type = DBFieldTypeLongText
-				default:
-					fd.Type = DBFieldTypeString
-				}
-			} else {
-				fd.Type = int(Value.IntValue(value, int64(DBFieldTypeString)))
-			}
-		})
+		switch dynamic.StringValue(value, "") {
+		case "string":
+			fd.Type = DBFieldTypeString
+		case "int":
+			fd.Type = DBFieldTypeInt
+		case "int64":
+			fd.Type = DBFieldTypeInt64
+		case "double":
+			fd.Type = DBFieldTypeDouble
+		case "boolean":
+			fd.Type = DBFieldTypeBoolean
+		case "text":
+			fd.Type = DBFieldTypeText
+		case "longtext":
+			fd.Type = DBFieldTypeLongText
+		default:
+			fd.Type = DBFieldTypeString
+		}
 	}
-	return reflect.ValueOf(nil)
 }
 
 func (fd *DBField) DBType() string {
@@ -92,6 +85,10 @@ func (fd *DBField) DBType() string {
 	return fmt.Sprintf("VARCHAR(%d)", fd.Length)
 }
 
+func (fd *DBField) String() string {
+	return fd.DBType()
+}
+
 const DBIndexTypeAsc = 1
 const DBIndexTypeDesc = 2
 
@@ -101,38 +98,32 @@ type DBIndex struct {
 	Unique bool
 }
 
-func (fd *DBIndex) GetValue(key string) reflect.Value {
-	if key == "Field" {
-		return reflect.ValueOf(&fd.Field)
-	} else if key == "Type" {
-		return reflect.ValueOf(func(value reflect.Value) {
-			if value.Kind() == reflect.String {
-				switch value.String() {
-				case "string":
-					fd.Type = DBFieldTypeString
-				case "int":
-					fd.Type = DBFieldTypeInt
-				case "int64":
-					fd.Type = DBFieldTypeInt64
-				case "double":
-					fd.Type = DBFieldTypeDouble
-				case "boolean":
-					fd.Type = DBFieldTypeBoolean
-				case "text":
-					fd.Type = DBFieldTypeText
-				case "longtext":
-					fd.Type = DBFieldTypeLongText
-				default:
-					fd.Type = DBFieldTypeString
-				}
-			} else {
-				fd.Type = int(Value.IntValue(value, int64(DBFieldTypeString)))
-			}
-		})
-	} else if key == "Unique" {
-		return reflect.ValueOf(&fd.Unique)
+func (fd *DBIndex) SetValue(key string, value interface{}) {
+	switch key {
+	case "Field":
+		fd.Field = dynamic.StringValue(value, "")
+	case "Type":
+		switch dynamic.StringValue(value, "") {
+		case "string":
+			fd.Type = DBFieldTypeString
+		case "int":
+			fd.Type = DBFieldTypeInt
+		case "int64":
+			fd.Type = DBFieldTypeInt64
+		case "double":
+			fd.Type = DBFieldTypeDouble
+		case "boolean":
+			fd.Type = DBFieldTypeBoolean
+		case "text":
+			fd.Type = DBFieldTypeText
+		case "longtext":
+			fd.Type = DBFieldTypeLongText
+		default:
+			fd.Type = DBFieldTypeString
+		}
+	case "Unique":
+		fd.Unique = dynamic.BooleanValue(value, false)
 	}
-	return reflect.ValueOf(nil)
 }
 
 func (idx *DBIndex) DBType() string {
@@ -145,11 +136,15 @@ func (idx *DBIndex) DBType() string {
 	return "ASC"
 }
 
+func (idx *DBIndex) String() string {
+	return idx.DBType()
+}
+
 type DBTable struct {
 	Name   string
 	Key    string
-	Fields map[string]DBField
-	Indexs map[string]DBIndex
+	Fields map[string]*DBField
+	Indexs map[string]*DBIndex
 }
 
 func DBInit(db *sql.DB) error {

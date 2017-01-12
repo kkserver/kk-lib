@@ -3,8 +3,8 @@ package app
 import (
 	"errors"
 	"fmt"
+	"github.com/kkserver/kk-lib/kk/dynamic"
 	"github.com/kkserver/kk-lib/kk/inifile"
-	"github.com/kkserver/kk-lib/kk/value"
 	"reflect"
 	"strings"
 )
@@ -115,9 +115,8 @@ func Load(app IApp, path string) error {
 		} else {
 			keys = strings.Split(f.Section, ".")
 		}
-		var v = reflect.ValueOf(app)
 
-		value.SetWithKeys(v, append(keys, f.Key), reflect.ValueOf(f.Value))
+		dynamic.SetWithKeys(app, append(keys, f.Key), f.Value)
 
 	}
 
@@ -230,19 +229,10 @@ func Handle(app IApp, task ITask) error {
 
 func NewTask(app IApp, name []string) (ITask, bool) {
 
-	var v = value.GetWithKeys(reflect.ValueOf(app), name)
+	var v = dynamic.GetWithKeys(app, name)
 
-	switch v.Kind() {
-	case reflect.Ptr:
-		v = reflect.New(v.Type().Elem())
-	case reflect.Struct:
-		v = reflect.New(v.Type())
-	default:
-		return nil, false
-	}
-
-	if v.CanInterface() {
-		var t, ok = v.Interface().(ITask)
+	if v != nil {
+		var t, ok = v.(ITask)
 		return t, ok
 	}
 

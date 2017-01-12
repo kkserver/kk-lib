@@ -15,7 +15,7 @@ type Config struct {
 	Ping         string
 	PingInterval int64
 	Options      map[string]interface{}
-	Timeout      time.Duration
+	Timeout      int64
 }
 
 type Counter struct {
@@ -179,7 +179,7 @@ func (S *Service) connect(a app.IApp) {
 		log.Printf("Disconnected(%s) %s %s\n", S.Config.Name, cli.Address(), err.Error())
 		kk.GetDispatchMain().AsyncDelay(func() {
 			S.connect(a)
-		}, S.Config.Timeout*time.Second)
+		}, time.Duration(S.Config.Timeout)*time.Second)
 	}
 
 	cli.OnMessage = func(message *kk.Message) {
