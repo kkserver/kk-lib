@@ -188,6 +188,120 @@ func GetWithKeys(object interface{}, keys []string) interface{} {
 	}
 }
 
+func Each(object interface{}, fn func(key interface{}, value interface{}) bool) {
+
+	if object == nil {
+		return
+	}
+
+	{
+		v, ok := object.(map[string]interface{})
+
+		if ok {
+			for key, value := range v {
+				if !fn(key, value) {
+					break
+				}
+			}
+			return
+		}
+	}
+
+	{
+		v, ok := object.(map[interface{}]interface{})
+
+		if ok {
+			for key, value := range v {
+				if !fn(key, value) {
+					break
+				}
+			}
+			return
+		}
+	}
+
+	{
+		v, ok := object.([]interface{})
+
+		if ok {
+			for key, value := range v {
+				if !fn(key, value) {
+					break
+				}
+			}
+			return
+		}
+	}
+
+	{
+		v := reflect.ValueOf(object)
+		switch v.Kind() {
+		case reflect.Map:
+
+			for _, key := range v.MapKeys() {
+				if key.CanInterface() {
+					vv := v.MapIndex(key)
+					if vv.CanInterface() {
+						if !fn(key.Interface(), vv.Interface()) {
+							break
+						}
+					}
+				}
+			}
+		case reflect.Slice:
+
+			for i := 0; i < v.Len(); i++ {
+				vv := v.Index(i)
+				if vv.CanInterface() {
+					if !fn(i, vv.Interface()) {
+
+					}
+				}
+			}
+		case reflect.Ptr:
+			switch v.Type().Elem().Kind() {
+			case reflect.Struct:
+				t := v.Type().Elem()
+				for i := 0; i < t.NumField(); i++ {
+					fd := t.Field(i)
+					fdv := v.Elem().Field(i)
+					if fdv.CanInterface() {
+						if !fn(fd.Name, fdv.Interface()) {
+							break
+						}
+					}
+
+				}
+			}
+		}
+	}
+
+}
+
+func IsEmpty(object interface{}) bool {
+
+	if object == nil {
+		return true
+	}
+
+	v := reflect.ValueOf(object)
+
+	switch v.Kind() {
+	case reflect.String:
+		return v.String() != ""
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return v.Int() == 0
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return v.Uint() == 0
+	case reflect.Float32, reflect.Float64:
+		return v.Float() == 0
+	case reflect.Bool:
+		return v.Bool() == false
+	}
+
+	return false
+}
+
 func Set(object interface{}, key string, value interface{}) {
 
 	if object == nil {
