@@ -232,7 +232,8 @@ func NewTask(app IApp, name []string) (ITask, bool) {
 	var v = dynamic.GetWithKeys(app, name)
 
 	if v != nil {
-		var t, ok = v.(ITask)
+		vv := reflect.New(reflect.TypeOf(v).Elem()).Interface()
+		var t, ok = vv.(ITask)
 		return t, ok
 	}
 

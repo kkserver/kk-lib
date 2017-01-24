@@ -448,6 +448,8 @@ func StringValue(value interface{}, defaultValue string) string {
 				return "true"
 			}
 			return "false"
+		default:
+			fmt.Println("dynamic.StringValue", v.Kind())
 		}
 	}
 

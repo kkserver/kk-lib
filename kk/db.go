@@ -430,7 +430,7 @@ type DBValue struct {
 type DBScaner struct {
 	object   interface{}
 	fields   []interface{}
-	nilValue string
+	nilValue interface{}
 }
 
 func NewDBScaner(object interface{}) DBScaner {
@@ -460,19 +460,34 @@ func (o *DBScaner) Scan(rows *sql.Rows) error {
 			o.fields[i] = &o.nilValue
 		}
 
-		var tbv = reflect.ValueOf(o.object).Elem()
-		var tb = tbv.Type()
-		var fc = tb.NumField()
+		var fn func(value reflect.Value) = nil
 
-		for i := 0; i < fc; i += 1 {
-			var fd = tb.Field(i)
-			var fbv = tbv.Field(i)
-			var name = strings.ToLower(fd.Name)
-			var idx, ok = mi[name]
-			if ok {
-				o.fields[idx] = fbv.Addr().Interface()
+		fn = func(value reflect.Value) {
+			switch value.Kind() {
+			case reflect.Ptr:
+				if !value.IsNil() {
+					fn(value.Elem())
+				}
+			case reflect.Struct:
+				t := value.Type()
+				for i := 0; i < value.NumField(); i++ {
+					var fd = value.Field(i)
+					switch fd.Kind() {
+					case reflect.Struct:
+						fn(fd)
+					default:
+						var name = strings.ToLower(t.Field(i).Name)
+						idx, ok := mi[name]
+						if ok {
+							o.fields[idx] = fd.Addr().Interface()
+						}
+					}
+
+				}
 			}
 		}
+
+		fn(reflect.ValueOf(o.object))
 
 	}
 

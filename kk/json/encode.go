@@ -33,6 +33,18 @@ func encode(object interface{}, w *bytes.Buffer) error {
 			}
 		}
 		w.WriteString("}")
+	case reflect.Slice:
+		w.WriteString("[")
+		for i := 0; i < v.Len(); i++ {
+			vv := v.Index(i)
+			if vv.CanInterface() {
+				if i != 0 {
+					w.WriteString(",")
+				}
+				encode(vv.Interface(), w)
+			}
+		}
+		w.WriteString("]")
 	default:
 		b, err := json.Marshal(object)
 		if err != nil {
