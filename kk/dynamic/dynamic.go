@@ -42,7 +42,12 @@ func GetWithAutoCreate(object interface{}, key string, autocreate bool) interfac
 		v, ok := object.(map[string]interface{})
 
 		if ok {
-			return v[key]
+			vv, ok := v[key]
+			if !ok && autocreate {
+				vv = map[interface{}]interface{}{}
+				v[key] = vv
+			}
+			return vv
 		}
 	}
 
@@ -50,7 +55,12 @@ func GetWithAutoCreate(object interface{}, key string, autocreate bool) interfac
 		v, ok := object.(map[interface{}]interface{})
 
 		if ok {
-			return v[key]
+			vv, ok := v[key]
+			if !ok && autocreate {
+				vv = map[interface{}]interface{}{}
+				v[key] = vv
+			}
+			return vv
 		}
 	}
 
