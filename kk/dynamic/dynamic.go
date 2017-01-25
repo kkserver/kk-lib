@@ -616,3 +616,125 @@ func BooleanValue(value interface{}, defaultValue bool) bool {
 	return defaultValue
 
 }
+
+func SetValue(object interface{}, value interface{}) {
+
+	if object == nil {
+		return
+	}
+
+	v := reflect.ValueOf(object)
+
+	switch v.Kind() {
+	case reflect.Ptr:
+		switch v.Type().Elem().Kind() {
+		case reflect.String:
+			v.SetString(StringValue(value, ""))
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			v.SetInt(IntValue(value, 0))
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+			v.SetUint(UintValue(value, 0))
+		case reflect.Float32, reflect.Float64:
+			v.SetFloat(FloatValue(value, 0))
+		case reflect.Bool:
+			v.SetBool(BooleanValue(value, false))
+		case reflect.Map:
+			if v.IsNil() {
+				v.Set(reflect.MakeMap(v.Type().Elem()))
+			}
+			SetValue(v.Elem().Interface(), value)
+		case reflect.Struct:
+			if v.IsNil() {
+				v.Set(reflect.New(v.Type().Elem()))
+			}
+			Each(value, func(key interface{}, value interface{}) bool {
+				name := StringValue(key, "")
+				vval := v.Elem().FieldByName(name)
+				if vval.IsValid() {
+					SetValue(vval.Addr().Interface(), value)
+				}
+				return true
+			})
+		}
+	case reflect.Map:
+		Each(value, func(key interface{}, value interface{}) bool {
+			var kval reflect.Value
+			var vval reflect.Value
+			switch v.Type().Key().Kind() {
+			case reflect.Interface:
+				kval = reflect.ValueOf(key)
+			case reflect.String:
+				kval = reflect.ValueOf(StringValue(key, ""))
+			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+				kval = reflect.ValueOf(IntValue(key, 0))
+			case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+				kval = reflect.ValueOf(UintValue(key, 0))
+			case reflect.ValueOf(key).Kind():
+				kval = reflect.ValueOf(key)
+			}
+			switch v.Type().Elem().Kind() {
+			case reflect.Interface:
+				vval = reflect.ValueOf(value)
+			case reflect.String:
+				vval = reflect.ValueOf(StringValue(value, ""))
+			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+				vval = reflect.ValueOf(IntValue(value, 0))
+			case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+				vval = reflect.ValueOf(UintValue(value, 0))
+			case reflect.Float32, reflect.Float64:
+				vval = reflect.ValueOf(FloatValue(value, 0))
+			case reflect.Bool:
+				vval = reflect.ValueOf(BooleanValue(value, false))
+			case reflect.ValueOf(value).Kind():
+				vval = reflect.ValueOf(value)
+			}
+			if kval.IsValid() && kval.IsValid() {
+				v.SetMapIndex(kval, vval)
+			}
+			return true
+		})
+	}
+}
+
+func AddValue(object interface{}, value interface{}) {
+
+	if object == nil {
+		return
+	}
+
+	v := reflect.ValueOf(object)
+
+	switch v.Kind() {
+	case reflect.Ptr:
+		switch v.Type().Elem().Kind() {
+		case reflect.Slice:
+
+			var vv reflect.Value
+			var vval = reflect.ValueOf(value)
+
+			if v.IsNil() {
+				vv = reflect.MakeSlice(v.Type().Elem(), 0, 0)
+			} else {
+				vv = v.Elem()
+			}
+
+			switch v.Type().Elem().Elem().Kind() {
+			case reflect.Interface:
+				vv = reflect.ValueOf(value)
+			case reflect.String:
+				vv = reflect.AppendSlice(vv, reflect.ValueOf(StringValue(value, "")))
+			case reflect.Ptr:
+				switch v.Type().Elem().Elem().Elem().Kind() {
+				case reflect.Struct:
+					vval = reflect.New(v.Type().Elem().Elem().Elem())
+					SetValue(vval.Interface(), value)
+					vv = reflect.AppendSlice(vv, vval)
+				}
+			case vval.Kind():
+				vv = reflect.AppendSlice(vv, vval)
+			}
+
+			v.Set(vv)
+		}
+	}
+}

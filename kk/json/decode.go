@@ -115,7 +115,7 @@ func decodeObject(dec *json.Decoder, value reflect.Value) error {
 	}
 
 	if mapvalue != nil {
-		v.Set(reflect.ValueOf(mapvalue))
+		value.Set(reflect.ValueOf(mapvalue))
 	}
 
 	return nil
