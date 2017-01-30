@@ -152,7 +152,12 @@ func DBInit(db *sql.DB) error {
 	return err
 }
 
-func DBBuild(db *sql.DB, table *DBTable, prefix string, auto_increment int) error {
+type Database interface {
+	Query(query string, args ...interface{}) (*sql.Rows, error)
+	Exec(query string, args ...interface{}) (sql.Result, error)
+}
+
+func DBBuild(db Database, table *DBTable, prefix string, auto_increment int) error {
 
 	var tbname = prefix + table.Name
 
@@ -277,21 +282,17 @@ func DBBuild(db *sql.DB, table *DBTable, prefix string, auto_increment int) erro
 	return nil
 }
 
-type DBQueryer interface {
-	Query(query string, args ...interface{}) (*sql.Rows, error)
-}
-
-func DBQuery(db DBQueryer, table *DBTable, prefix string, sql string, args ...interface{}) (*sql.Rows, error) {
+func DBQuery(db Database, table *DBTable, prefix string, sql string, args ...interface{}) (*sql.Rows, error) {
 	var tbname = prefix + table.Name
 	return db.Query(fmt.Sprintf("SELECT * FROM `%s` %s", tbname, sql), args...)
 }
 
-func DBDelete(db *sql.DB, table *DBTable, prefix string, sql string, args ...interface{}) (sql.Result, error) {
+func DBDelete(db Database, table *DBTable, prefix string, sql string, args ...interface{}) (sql.Result, error) {
 	var tbname = prefix + table.Name
 	return db.Exec(fmt.Sprintf("DELETE FROM `%s` %s", tbname, sql), args...)
 }
 
-func DBQueryCount(db DBQueryer, table *DBTable, prefix string, sql string, args ...interface{}) (int, error) {
+func DBQueryCount(db Database, table *DBTable, prefix string, sql string, args ...interface{}) (int, error) {
 	var tbname = prefix + table.Name
 
 	var rows, err = db.Query(fmt.Sprintf("SELECT COUNT(*) as c FROM `%s` %s", tbname, sql), args...)
@@ -314,11 +315,11 @@ func DBQueryCount(db DBQueryer, table *DBTable, prefix string, sql string, args 
 	return 0, nil
 }
 
-func DBUpdate(db *sql.DB, table *DBTable, prefix string, object interface{}) (sql.Result, error) {
+func DBUpdate(db Database, table *DBTable, prefix string, object interface{}) (sql.Result, error) {
 	return DBUpdateWithKeys(db, table, prefix, object, nil)
 }
 
-func DBUpdateWithKeys(db *sql.DB, table *DBTable, prefix string, object interface{}, keys map[string]bool) (sql.Result, error) {
+func DBUpdateWithKeys(db Database, table *DBTable, prefix string, object interface{}, keys map[string]bool) (sql.Result, error) {
 
 	var tbname = prefix + table.Name
 	var s bytes.Buffer
@@ -363,7 +364,7 @@ func DBUpdateWithKeys(db *sql.DB, table *DBTable, prefix string, object interfac
 	return db.Exec(s.String(), fs[:n]...)
 }
 
-func DBInsert(db *sql.DB, table *DBTable, prefix string, object interface{}) (sql.Result, error) {
+func DBInsert(db Database, table *DBTable, prefix string, object interface{}) (sql.Result, error) {
 	var tbname = prefix + table.Name
 	var s bytes.Buffer
 	var w bytes.Buffer
