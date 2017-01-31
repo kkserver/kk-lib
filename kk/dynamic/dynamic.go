@@ -264,7 +264,7 @@ func Each(object interface{}, fn func(key interface{}, value interface{}) bool) 
 				vv := v.Index(i)
 				if vv.CanInterface() {
 					if !fn(i, vv.Interface()) {
-
+						break
 					}
 				}
 			}
