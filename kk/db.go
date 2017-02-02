@@ -85,6 +85,16 @@ func (fd *DBField) DBType() string {
 	return fmt.Sprintf("VARCHAR(%d)", fd.Length)
 }
 
+func (fd *DBField) DBDefaultValue() string {
+	switch fd.Type {
+	case DBFieldTypeInt, DBFieldTypeInt64, DBFieldTypeDouble, DBFieldTypeBoolean:
+		return "DEFAULT 0"
+	case DBFieldTypeText, DBFieldTypeLongText:
+		return ""
+	}
+	return "DEFAULT ''"
+}
+
 func (fd *DBField) String() string {
 	return fd.DBType()
 }
@@ -183,14 +193,16 @@ func DBBuild(db Database, table *DBTable, prefix string, auto_increment int) err
 			var fd, ok = tb.Fields[name]
 			if ok {
 				if fd.Type != field.Type || fd.Length != field.Length {
-					_, err = db.Exec(fmt.Sprintf("ALTER TABLE `%s` CHANGE `%s` `%s` %s;", tbname, name, name, field.DBType()))
+					log.Println("SQL", fmt.Sprintf("ALTER TABLE `%s` CHANGE `%s` `%s` %s %s;", tbname, name, name, field.DBType(), field.DBDefaultValue()))
+					_, err = db.Exec(fmt.Sprintf("ALTER TABLE `%s` CHANGE `%s` `%s` %s %s;", tbname, name, name, field.DBType(), field.DBDefaultValue()))
 					if err != nil {
 						log.Println(err)
 					}
 					hasUpdate = true
 				}
 			} else {
-				_, err = db.Exec(fmt.Sprintf("ALTER TABLE `%s` ADD COLUMN `%s` %s;", tbname, name, field.DBType()))
+				log.Println("SQL", fmt.Sprintf("ALTER TABLE `%s` ADD COLUMN `%s` %s %s;", tbname, name, field.DBType(), field.DBDefaultValue()))
+				_, err = db.Exec(fmt.Sprintf("ALTER TABLE `%s` ADD COLUMN `%s` %s %s;", tbname, name, field.DBType(), field.DBDefaultValue()))
 				if err != nil {
 					log.Println(err)
 				}
@@ -240,7 +252,7 @@ func DBBuild(db Database, table *DBTable, prefix string, auto_increment int) err
 			if i != 0 {
 				s.WriteString(",")
 			}
-			s.WriteString(fmt.Sprintf("`%s` %s", name, field.DBType()))
+			s.WriteString(fmt.Sprintf("`%s` %s %s", name, field.DBType(), field.DBDefaultValue()))
 			i += 1
 		}
 
