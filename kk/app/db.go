@@ -10,7 +10,6 @@ type DBConfig struct {
 	Name         string
 	Url          string
 	Prefix       string
-	Charset      string
 	MaxIdleConns int
 	MaxOpenConns int
 	db           *sql.DB
@@ -24,16 +23,6 @@ func (C *DBConfig) Get(app IApp) (*sql.DB, error) {
 
 		if err != nil {
 			return nil, err
-		}
-
-		if C.Charset != "" {
-
-			_, err = db.Exec("SET NAMES " + C.Charset)
-
-			if err != nil {
-				db.Close()
-				return nil, err
-			}
 		}
 
 		db.SetMaxIdleConns(C.MaxIdleConns)
