@@ -36,6 +36,7 @@ type Service struct {
 	client  *kk.TCPClient
 	address string
 	counter Counter
+	tasks   map[string]*Counter
 }
 
 func (S *Service) Handle(a app.IApp, task app.ITask) error {
@@ -43,6 +44,8 @@ func (S *Service) Handle(a app.IApp, task app.ITask) error {
 }
 
 func (S *Service) HandleInitTask(a app.IApp, task *app.InitTask) error {
+
+	S.tasks = map[string]*Counter{}
 
 	S.connect(a)
 
@@ -60,7 +63,7 @@ func (S *Service) HandleInitTask(a app.IApp, task *app.InitTask) error {
 			v.Message.Method = "PING"
 			v.Message.To = S.Config.Ping
 			v.Message.Type = "text/json"
-			v.Message.Content, _ = json.Encode(map[string]interface{}{"options": S.Config.Options, "address": S.address, "counter": &S.counter})
+			v.Message.Content, _ = json.Encode(map[string]interface{}{"options": S.Config.Options, "address": S.address, "counter": &S.counter, "tasks": S.tasks})
 
 			S.HandleRemoteSendMessageTask(a, &v)
 
@@ -144,6 +147,32 @@ func (S *Service) onMessage(a app.IApp, message *kk.Message) {
 					S.counter.MinInterval = interval
 				}
 			}
+
+			v, ok := S.tasks[name]
+
+			if !ok {
+				v = &Counter{}
+				S.tasks[name] = v
+			}
+
+			v.Interval = (v.Count*v.Interval + interval) / (v.Count + 1)
+			v.Count = v.Count + 1
+			v.Atime = atime
+			v.Duration = v.Duration + interval
+			v.Size = v.Size + size
+
+			if v.Count == 1 {
+				v.MaxInterval = interval
+				v.MinInterval = interval
+			} else {
+				if interval > v.MaxInterval {
+					v.MaxInterval = interval
+				}
+				if interval < v.MinInterval {
+					v.MinInterval = interval
+				}
+			}
+
 		})
 
 		if err != nil && err != app.Break {
