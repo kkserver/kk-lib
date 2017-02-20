@@ -37,6 +37,7 @@ type Service struct {
 	address string
 	counter Counter
 	tasks   map[string]*Counter
+	ctime   int64
 }
 
 func (S *Service) Handle(a app.IApp, task app.ITask) error {
@@ -45,6 +46,7 @@ func (S *Service) Handle(a app.IApp, task app.ITask) error {
 
 func (S *Service) HandleInitTask(a app.IApp, task *app.InitTask) error {
 
+	S.ctime = time.Now().Unix()
 	S.tasks = map[string]*Counter{}
 
 	S.connect(a)
@@ -63,7 +65,7 @@ func (S *Service) HandleInitTask(a app.IApp, task *app.InitTask) error {
 			v.Message.Method = "PING"
 			v.Message.To = S.Config.Ping
 			v.Message.Type = "text/json"
-			v.Message.Content, _ = json.Encode(map[string]interface{}{"options": S.Config.Options, "address": S.address, "counter": &S.counter, "tasks": S.tasks})
+			v.Message.Content, _ = json.Encode(map[string]interface{}{"options": S.Config.Options, "address": S.address, "counter": &S.counter, "tasks": S.tasks, "ctime": S.ctime})
 
 			S.HandleRemoteSendMessageTask(a, &v)
 
