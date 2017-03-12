@@ -299,6 +299,36 @@ func DBQuery(db Database, table *DBTable, prefix string, sql string, args ...int
 	return db.Query(fmt.Sprintf("SELECT * FROM `%s` %s", tbname, sql), args...)
 }
 
+func DBQueryWithKeys(db Database, table *DBTable, prefix string, keys map[string]bool, sql string, args ...interface{}) (*sql.Rows, error) {
+
+	s := bytes.NewBuffer(nil)
+
+	if keys == nil {
+		s.WriteString("SELECT *")
+	} else {
+		s.WriteString("SELECT ")
+		i := 0
+		if table.Key != "" {
+			s.WriteString(fmt.Sprintf("`%s`", table.Key))
+			i = i + 1
+		}
+		for name, _ := range table.Fields {
+			v, ok := keys[name]
+			if ok && v {
+				if i != 0 {
+					s.WriteString(",")
+				}
+				s.WriteString(fmt.Sprintf("`%s`", name))
+				i = i + 1
+			}
+		}
+	}
+
+	s.WriteString(fmt.Sprintf("FROM `%s%s` %s", prefix, table.Name, sql))
+
+	return db.Query(s.String(), args...)
+}
+
 func DBDelete(db Database, table *DBTable, prefix string, sql string, args ...interface{}) (sql.Result, error) {
 	var tbname = prefix + table.Name
 	return db.Exec(fmt.Sprintf("DELETE FROM `%s` %s", tbname, sql), args...)
