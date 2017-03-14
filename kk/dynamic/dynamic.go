@@ -458,6 +458,10 @@ func StringValue(value interface{}, defaultValue string) string {
 				return "true"
 			}
 			return "false"
+		case reflect.Ptr:
+			if !v.IsNil() && v.Elem().CanInterface() {
+				return StringValue(v.Elem().Interface(), defaultValue)
+			}
 		default:
 			fmt.Println("dynamic.StringValue", v.Kind())
 		}
@@ -499,7 +503,10 @@ func IntValue(value interface{}, defaultValue int64) int64 {
 				vv, _ := strconv.ParseInt(s, 10, 64)
 				return vv
 			}
-
+		case reflect.Ptr:
+			if !v.IsNil() && v.Elem().CanInterface() {
+				return IntValue(v.Elem().Interface(), defaultValue)
+			}
 		}
 	}
 
@@ -539,7 +546,10 @@ func UintValue(value interface{}, defaultValue uint64) uint64 {
 				vv, _ := strconv.ParseUint(s, 10, 64)
 				return vv
 			}
-
+		case reflect.Ptr:
+			if !v.IsNil() && v.Elem().CanInterface() {
+				return UintValue(v.Elem().Interface(), defaultValue)
+			}
 		}
 	}
 
@@ -570,6 +580,10 @@ func FloatValue(value interface{}, defaultValue float64) float64 {
 		case reflect.String:
 			vv, _ := strconv.ParseFloat(v.String(), 64)
 			return vv
+		case reflect.Ptr:
+			if !v.IsNil() && v.Elem().CanInterface() {
+				return FloatValue(v.Elem().Interface(), defaultValue)
+			}
 		}
 	}
 
@@ -610,6 +624,10 @@ func BooleanValue(value interface{}, defaultValue bool) bool {
 				return true
 			}
 			return false
+		case reflect.Ptr:
+			if !v.IsNil() && v.Elem().CanInterface() {
+				return BooleanValue(v.Elem().Interface(), defaultValue)
+			}
 		}
 	}
 
