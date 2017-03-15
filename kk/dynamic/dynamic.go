@@ -307,6 +307,10 @@ func IsEmpty(object interface{}) bool {
 		return v.Float() == 0
 	case reflect.Bool:
 		return v.Bool() == false
+	case reflect.Slice, reflect.Array:
+		return v.Len() == 0
+	case reflect.Map:
+		return len(v.MapKeys()) == 0
 	}
 
 	return false
@@ -374,6 +378,14 @@ func Set(object interface{}, key string, value interface{}) {
 			}
 		case reflect.Ptr:
 			switch v.Type().Elem().Kind() {
+			case reflect.Interface:
+				if v.IsNil() {
+					vv := map[interface{}]interface{}{}
+					Set(vv, key, value)
+					v.Set(reflect.ValueOf(vv))
+				} else {
+					Set(v.Interface(), key, value)
+				}
 			case reflect.Struct:
 				fd := v.Elem().FieldByName(key)
 				if fd.IsValid() && fd.CanSet() {
