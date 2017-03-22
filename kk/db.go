@@ -89,6 +89,8 @@ func (fd *DBField) DBDefaultValue() string {
 	switch fd.Type {
 	case DBFieldTypeInt, DBFieldTypeInt64, DBFieldTypeDouble, DBFieldTypeBoolean:
 		return "DEFAULT 0"
+	case DBFieldTypeText, DBFieldTypeLongText:
+		return ""
 	}
 	return "DEFAULT ''"
 }
