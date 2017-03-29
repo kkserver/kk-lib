@@ -151,10 +151,11 @@ func (idx *DBIndex) String() string {
 }
 
 type DBTable struct {
-	Name   string
-	Key    string
-	Fields map[string]*DBField
-	Indexs map[string]*DBIndex
+	Name          string
+	Key           string
+	AutoIncrement int64
+	Fields        map[string]*DBField
+	Indexs        map[string]*DBIndex
 }
 
 func DBInit(db *sql.DB) error {
@@ -167,7 +168,7 @@ type Database interface {
 	Exec(query string, args ...interface{}) (sql.Result, error)
 }
 
-func DBBuild(db Database, table *DBTable, prefix string, auto_increment int) error {
+func DBBuild(db Database, table *DBTable, prefix string) error {
 
 	var tbname = prefix + table.Name
 
@@ -271,7 +272,10 @@ func DBBuild(db Database, table *DBTable, prefix string, auto_increment int) err
 		}
 
 		if table.Key != "" {
-			s.WriteString(fmt.Sprintf(" ) AUTO_INCREMENT = %d;", auto_increment))
+			if table.AutoIncrement <= 0 {
+				table.AutoIncrement = 1
+			}
+			s.WriteString(fmt.Sprintf(" ) AUTO_INCREMENT = %d;", table.AutoIncrement))
 		} else {
 			s.WriteString(" ) ;")
 		}

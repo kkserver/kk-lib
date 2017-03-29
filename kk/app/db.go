@@ -50,7 +50,7 @@ func (C *DBConfig) Get(app IApp) (*sql.DB, error) {
 				r, ok := fd.Addr().Interface().(*kk.DBTable)
 
 				if ok {
-					err = kk.DBBuild(db, r, C.Prefix, 1)
+					err = kk.DBBuild(db, r, C.Prefix)
 					if err != nil {
 						db.Close()
 						db = nil
